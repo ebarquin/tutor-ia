@@ -5,7 +5,7 @@ from datetime import datetime
 import shutil
 from src.apuntes.scripts.rag_local import obtener_contexto, responder_con_groq
 from src.apuntes.scripts.analizar_apuntes import analizar
-from src.apuntes.scripts.crear_vectorstore import crear_vectorstore, cargar_vectorstore
+from src.apuntes.scripts.crear_vectorstore import crear_vectorstore
 from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
 
 
