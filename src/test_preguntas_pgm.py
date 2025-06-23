@@ -1,20 +1,23 @@
 from src.apuntes.scripts.rag_local import obtener_contexto, responder_con_groq
 
 PREGUNTAS = [
-    "¿Qué tipos de políticas económicas puede aplicar el Estado?",
-    "¿Cuál es la diferencia entre políticas económicas horizontales y verticales?",
-    "¿Qué funciones cumple la política fiscal según el documento?",
-    "¿Qué son las políticas de ajuste macroeconómico y cuál es su objetivo?",
-    "¿Por qué se considera importante la coordinación entre políticas económicas?",
-    "¿Qué implica la sostenibilidad en las empresas de servicios públicos según el texto?",
-    "¿Qué papel tiene el sector público en la modernización económica y social?",
-    "¿Cómo se relaciona la política de infraestructuras con el crecimiento económico?",
-    "¿Qué efectos puede tener la emisión de deuda pública en la economía?",
-    "¿Qué se entiende por intervención estatal en el mercado y qué formas puede adoptar?",
+    # ✅ 5 preguntas basadas en el contenido del documento
+    "¿Qué fue la operación Barbarroja y qué consecuencias tuvo en el conflicto?",
+    "¿Qué papel desempeñaron los Estados Unidos tras el ataque a Pearl Harbor?",
+    "¿Cuál fue el resultado de la batalla de Stalingrado y por qué fue relevante?",
+    "¿Qué acuerdos se tomaron en las conferencias de Yalta y Potsdam?",
+    "¿Qué características tuvo la política de expansión territorial del Eje?",
+
+    # ❌ 5 preguntas que no están en el documento o no tienen relación con el tema
+    "¿Cuál fue la influencia del Renacimiento italiano en la Segunda Guerra Mundial?",
+    "¿Qué teorías económicas defendía Adam Smith durante la guerra?",
+    "¿En qué año cayó el Imperio Romano de Occidente?",
+    "¿Qué especies vegetales fueron descubiertas en la Antártida durante la guerra?",
+    "¿Cuáles fueron los principales avances tecnológicos del Neolítico?"
 ]
 
-MATERIA = "Economía"
-TEMA = "Economía Política"
+MATERIA = "Historia"
+TEMA = "Segunda Guerra Mundial"
 
 for i, pregunta in enumerate(PREGUNTAS, 1):
     print(f"\n🔹 Pregunta {i}: {pregunta}\n")

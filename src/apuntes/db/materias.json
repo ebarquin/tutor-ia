@@ -22,6 +22,15 @@
                     "origen": "primera_guerra_mundial.pdf"
                 }
             ]
+        },
+        "Segunda Guerra Mundial": {
+            "versiones": [
+                {
+                    "origen": "tema-9-segunda-guerra-mundial.pdf",
+                    "archivo": "tema-9-segunda-guerra-mundial_v1.pdf",
+                    "fecha": "2025-06-23"
+                }
+            ]
         }
     },
     "Econom\u00eda": {
