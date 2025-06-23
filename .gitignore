@@ -1,0 +1,34 @@
+# Entorno virtual
+.venv/
+env/
+ENV/
+venv/
+
+# Archivos sensibles
+.env
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# VSCode, PyCharm, Jupyter
+.vscode/
+.idea/
+.ipynb_checkpoints/
+
+# Modelos y cachés
+*.pt
+*.bin
+*.ckpt
+*.h5
+*.pth
+*.cache/
+transformers_cache/
+datasets_cache/
+
+# Otros
+.DS_Store
