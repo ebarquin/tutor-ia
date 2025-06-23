@@ -62,16 +62,16 @@ class DesarrolloInput(BaseModel):
     desarrollo: str   # texto redactado por el estudiante
 
 @router.post("/evaluar_desarrollo")
-def evaluar_desarrollo(input: DesarrolloInput):
+def evaluar_desarrollo(payload: DesarrolloInput):
     """
     Evalúa un desarrollo completo sobre un tema, comparándolo con los apuntes del alumno.
     """
     try:
-        resultado = evaluar_desarrollo_servicio(
-            materia=input.materia,
-            tema=input.tema,
-            titulo_tema=input.titulo_tema,
-            desarrollo=input.desarrollo
+        resultado = evaluar_respuesta_servicio(
+            materia=payload.materia,
+            tema=payload.tema,
+            titulo_tema=payload.titulo_tema,
+            desarrollo=payload.desarrollo
         )
         return {"evaluacion": resultado}
     except ValueError as e:
