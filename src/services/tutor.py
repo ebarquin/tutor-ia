@@ -1,17 +1,24 @@
 # src/services/tutor.py
-from src.apuntes.scripts.rag_local import obtener_contexto, responder_con_groq
-from src.apuntes.scripts.analizar_apuntes import analizar
-from src.apuntes.scripts.crear_vectorstore import crear_vectorstore
-from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
+
 from pathlib import Path
 from datetime import datetime
 import shutil
+
+from src.apuntes.scripts.llm_client import client
+from src.apuntes.scripts.rag_local import obtener_contexto, responder_con_groq
+from src.apuntes.scripts.analizar_apuntes import analizar
+from src.apuntes.scripts.crear_vectorstore import crear_vectorstore, cargar_vectorstore
+from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
+
+
+# ---------- CORE DE FUNCIONES ----------
 
 def generar_respuesta(materia, tema, pregunta):
     contexto, advertencia = obtener_contexto(materia, tema, pregunta)
     if advertencia:
         return None, advertencia
     return responder_con_groq(materia, pregunta, contexto), None
+
 
 def explicar_como_nino(materia, tema):
     pregunta_sintetica = f"Explícame el tema '{tema}' de la materia '{materia}' como si tuviera 12 años"
@@ -32,6 +39,7 @@ def explicar_como_nino(materia, tema):
     )
 
     return responder_con_groq(materia, pregunta_sintetica, prompt), None
+
 
 def subir_y_procesar_apunte(materia, tema, archivo):
     base = cargar_base()
@@ -69,11 +77,15 @@ def subir_y_procesar_apunte(materia, tema, archivo):
 
     return nuevo_nombre, None
 
+
+# ---------- FUNCIONES SERVICIO PARA API ----------
+
 def responder_pregunta_servicio(materia: str, tema: str, pregunta: str) -> str:
     respuesta, advertencia = generar_respuesta(materia, tema, pregunta)
     if advertencia:
         raise ValueError(advertencia)
     return respuesta
+
 
 def explicar_como_nino_servicio(materia: str, tema: str) -> str:
     respuesta, advertencia = explicar_como_nino(materia, tema)
@@ -81,8 +93,45 @@ def explicar_como_nino_servicio(materia: str, tema: str) -> str:
         raise ValueError(advertencia)
     return respuesta
 
+
 def procesar_apunte_completo(materia: str, tema: str, archivo: str) -> str:
     nombre, error = subir_y_procesar_apunte(materia, tema, archivo)
     if error:
         raise ValueError(error)
     return f"✅ Apunte '{nombre}' procesado correctamente para {materia} / {tema}."
+
+
+def evaluar_respuesta_servicio(materia: str, tema: str, pregunta: str, respuesta: str) -> str:
+    db = cargar_vectorstore(materia, tema)
+    docs_similares = db.similarity_search(pregunta, k=3)
+    contexto = "\n".join(doc.page_content for doc in docs_similares)
+
+    prompt = f"""
+Eres un profesor experto en {materia}, específicamente en el tema "{tema}".
+
+Corrige la siguiente respuesta escrita por un estudiante a esta pregunta:
+Pregunta: "{pregunta}"
+
+Respuesta del estudiante:
+\"\"\"
+{respuesta}
+\"\"\"
+
+Usa únicamente el siguiente contenido extraído de sus apuntes para comparar:
+\"\"\"
+{contexto}
+\"\"\"
+
+Tu corrección debe incluir:
+- Qué partes de la respuesta son correctas.
+- Qué partes son incorrectas o están incompletas.
+- Qué omisiones importantes hay.
+- Una sugerencia de mejora.
+- Una nota final del 0 al 10 basada en el contenido de los apuntes.
+
+Responde con claridad, sin inventar información que no esté en los apuntes.
+"""
+    return client.chat.completions.create(
+        model="gpt-4",  # O el que estés usando vía OpenRouter / Groq
+        messages=[{"role": "user", "content": prompt}]
+    ).choices[0].message.content

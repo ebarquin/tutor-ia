@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Query
-from fastapi import UploadFile, File, Form
+from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
 from pathlib import Path
+from pydantic import BaseModel
 from src.services.tutor import (
     responder_pregunta_servicio,
     explicar_como_nino_servicio,
-    procesar_apunte_completo
+    procesar_apunte_completo,
+    evaluar_respuesta_servicio
 )
 
 router = APIRouter()
@@ -41,7 +42,6 @@ async def procesar_apunte(
     """
     Procesa un nuevo apunte: analiza, trocea y actualiza vectorstore.
     """
-    # Guarda el archivo subido
     uploads_dir = Path("uploads")
     uploads_dir.mkdir(exist_ok=True)
     archivo_destino = uploads_dir / archivo.filename
@@ -52,3 +52,27 @@ async def procesar_apunte(
 
     mensaje = procesar_apunte_completo(materia, tema, archivo.filename)
     return {"mensaje": mensaje}
+
+
+# 📌 Modelo para evaluación de respuestas
+class DesarrolloInput(BaseModel):
+    materia: str
+    tema: str  # nombre del tema en los apuntes
+    titulo_tema: str  # título del desarrollo hecho por el alumno
+    desarrollo: str   # texto redactado por el estudiante
+
+@router.post("/evaluar_desarrollo")
+def evaluar_desarrollo(input: DesarrolloInput):
+    """
+    Evalúa un desarrollo completo sobre un tema, comparándolo con los apuntes del alumno.
+    """
+    try:
+        resultado = evaluar_desarrollo_servicio(
+            materia=input.materia,
+            tema=input.tema,
+            titulo_tema=input.titulo_tema,
+            desarrollo=input.desarrollo
+        )
+        return {"evaluacion": resultado}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
