@@ -110,3 +110,6 @@ yarl==1.20.1
 zstandard==0.23.0
 fastapi==0.110.0
 uvicorn[standard]==0.29.0
+streamlit
+requests
+python-multipart
