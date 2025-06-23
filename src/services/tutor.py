@@ -3,8 +3,6 @@
 from pathlib import Path
 from datetime import datetime
 import shutil
-
-from src.apuntes.scripts.llm_client import client
 from src.apuntes.scripts.rag_local import obtener_contexto, responder_con_groq
 from src.apuntes.scripts.analizar_apuntes import analizar
 from src.apuntes.scripts.crear_vectorstore import crear_vectorstore, cargar_vectorstore
