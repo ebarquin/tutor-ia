@@ -6,10 +6,11 @@ API_URL = "https://tutor-ia-api.onrender.com"
 st.set_page_config(page_title="Tutor-IA", layout="centered")
 st.title("🎓 Tutor Inteligente de Apuntes")
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🤖 Responder pregunta", 
     "🧒 Explicar como niño", 
-    "📄 Subir apunte"
+    "📄 Subir apunte",
+    "🧠 Evaluar desarrollo"
 ])
 
 # --- TAB 1: Responder pregunta ---
@@ -75,3 +76,29 @@ with tab3:
                     st.error("Error: " + response.text)
         else:
             st.warning("Por favor, completa todos los campos y selecciona un archivo.")
+
+# --- TAB 4: Evaluar desarrollo ---
+with tab4:
+    st.header("Evaluar un desarrollo completo de tema")
+    materia_eval = st.text_input("Materia", key="materia_eval")
+    tema_eval = st.text_input("Tema", key="tema_eval")
+    titulo_eval = st.text_input("Título del desarrollo", key="titulo_eval")
+    desarrollo = st.text_area("Desarrollo del tema", height=300)
+
+    if st.button("Enviar desarrollo para evaluación"):
+        if materia_eval and tema_eval and titulo_eval and desarrollo:
+            with st.spinner("Evaluando tu desarrollo..."):
+                payload = {
+                    "materia": materia_eval,
+                    "tema": tema_eval,
+                    "titulo_tema": titulo_eval,
+                    "desarrollo": desarrollo
+                }
+                response = requests.post(f"{API_URL}/evaluar_desarrollo", json=payload)
+                if response.status_code == 200:
+                    st.markdown("### 📝 Evaluación")
+                    st.success(response.json()["evaluacion"])
+                else:
+                    st.error("Error: " + response.text)
+        else:
+            st.warning("Por favor, completa todos los campos antes de enviar.")
