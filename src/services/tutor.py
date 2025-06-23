@@ -101,37 +101,34 @@ def procesar_apunte_completo(materia: str, tema: str, archivo: str) -> str:
     return f"✅ Apunte '{nombre}' procesado correctamente para {materia} / {tema}."
 
 
-def evaluar_respuesta_servicio(materia: str, tema: str, pregunta: str, respuesta: str) -> str:
+def evaluar_desarrollo_servicio(materia: str, tema: str, titulo_tema: str, desarrollo: str) -> str:
     db = cargar_vectorstore(materia, tema)
-    docs_similares = db.similarity_search(pregunta, k=3)
+    docs_similares = db.similarity_search(titulo_tema, k=4)
     contexto = "\n".join(doc.page_content for doc in docs_similares)
 
     prompt = f"""
-Eres un profesor experto en {materia}, específicamente en el tema "{tema}".
+Eres un profesor experto en {materia}, corrigiendo un desarrollo completo del estudiante sobre el tema: "{titulo_tema}".
 
-Corrige la siguiente respuesta escrita por un estudiante a esta pregunta:
-Pregunta: "{pregunta}"
-
-Respuesta del estudiante:
-\"\"\"
-{respuesta}
-\"\"\"
-
-Usa únicamente el siguiente contenido extraído de sus apuntes para comparar:
+Este desarrollo debe basarse únicamente en los siguientes apuntes:
 \"\"\"
 {contexto}
 \"\"\"
 
-Tu corrección debe incluir:
-- Qué partes de la respuesta son correctas.
-- Qué partes son incorrectas o están incompletas.
-- Qué omisiones importantes hay.
-- Una sugerencia de mejora.
-- Una nota final del 0 al 10 basada en el contenido de los apuntes.
+Desarrollo redactado por el estudiante:
+\"\"\"
+{desarrollo}
+\"\"\"
 
-Responde con claridad, sin inventar información que no esté en los apuntes.
+Corrige el desarrollo siguiendo estos puntos:
+1. ¿Qué partes están correctamente explicadas según los apuntes?
+2. ¿Qué errores o imprecisiones se detectan?
+3. ¿Qué información importante falta según el contexto?
+4. ¿Qué consejo le darías para mejorar?
+5. Asigna una nota final del 0 al 10, solo en base a los apuntes procesados.
+
+No añadas información externa. Tu corrección debe ser clara, objetiva y útil para mejorar su aprendizaje.
 """
     return client.chat.completions.create(
-        model="gpt-4",  # O el que estés usando vía OpenRouter / Groq
+        model="gpt-4",
         messages=[{"role": "user", "content": prompt}]
     ).choices[0].message.content
