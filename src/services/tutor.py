@@ -25,25 +25,22 @@ def generar_respuesta(materia, tema, pregunta):
 
 
 def explicar_como_nino(materia, tema):
-    pregunta_sintetica = f"Explícame el tema '{tema}' de la materia '{materia}' como si tuviera 12 años"
-    contexto, advertencia = obtener_contexto(materia, tema, pregunta_sintetica)
+    contexto, advertencia = obtener_contexto(materia, tema, f"Resumen claro")
     if advertencia:
         return None, advertencia
 
     prompt = (
-        f"Explica el siguiente tema de manera clara y sencilla, evitando tecnicismos innecesarios. "
-        f"No uses un tono infantil ni exageradamente académico. Imagina que estás escribiendo para alguien "
-        f"que no sabe mucho del tema, pero quiere entenderlo bien.\n\n"
-        f"Organiza la explicación con buena estructura, frases directas y ejemplos cuando sean útiles. "
-        f"No introduzcas saludos ni metáforas innecesarias. Limita la respuesta a un máximo de 200 palabras.\n\n"
-        f"Tema: {tema} ({materia})\n\n"
-        f"Contexto disponible:\n{contexto}\n\n"
-        f"Ahora, genera una explicación clara, precisa y útil para cualquier lector interesado. "
-        f"Recuerda: no más de 200 palabras."
+        "Explica de forma clara, sencilla y directa el siguiente contenido, "
+        "sin usar frases como 'estos apuntes', 'este texto', 'este documento' o similares. "
+        "Empieza con la información relevante, usa frases cortas y no añadas saludos ni introducciones. "
+        "Organiza la explicación con buena estructura y ejemplos cuando sean útiles. "
+        "No añadas información externa ni te inventes nada. Limita la explicación a 500 palabras.\n\n"
+        "Contenido de los apuntes:\n"
+        f"{contexto}\n\n"
+        "Explica lo esencial de estos apuntes para que cualquiera lo entienda fácilmente."
     )
 
-    return responder_con_groq(materia, pregunta_sintetica, prompt), None
-
+    return responder_con_groq(materia, "Explica claramente el contenido de estos apuntes", prompt), None
 
 def subir_y_procesar_apunte(materia, tema, archivo):
     base = cargar_base()
