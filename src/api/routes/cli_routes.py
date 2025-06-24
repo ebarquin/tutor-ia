@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
 from pathlib import Path
 from pydantic import BaseModel
+from typing import List
 from src.services.tutor import (
     responder_pregunta_servicio,
     explicar_como_nino_servicio,
@@ -76,3 +77,30 @@ def evaluar_desarrollo(payload: DesarrolloInput):
         return {"evaluacion": resultado}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+    # Directorio donde se almacenan los vectorstores
+VECTORSTORE_DIR = Path("src/apuntes/rag/vectorstores")
+
+@router.get("/materias", response_model=List[str])
+def obtener_materias():
+    """
+    Devuelve el listado de materias (carpetas con vectorstores).
+    """
+    materias = {
+        nombre.split("__")[0]
+        for nombre in [f.name for f in VECTORSTORE_DIR.iterdir() if f.is_dir()]
+        if "__" in nombre
+    }
+    return sorted(materias)
+
+@router.get("/temas", response_model=List[str])
+def obtener_temas(materia: str):
+    """
+    Devuelve el listado de temas disponibles para una materia concreta.
+    """
+    temas = [
+        f.name.split("__")[1].replace("_", " ").capitalize()
+        for f in VECTORSTORE_DIR.iterdir()
+        if f.is_dir() and f.name.startswith(f"{materia}__")
+    ]
+    return sorted(temas)
