@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 
 API_URL = "https://tutor-ia-api.onrender.com"
 
@@ -101,6 +102,10 @@ with tab3:
                 )
                 if response.status_code == 200:
                     st.success(response.json()["mensaje"])
+                    # Espera 1.5 segundos para que el usuario vea el mensaje
+                    time.sleep(1.5)
+                    st.cache_data.clear()
+                    st.experimental_rerun()
                 else:
                     st.error("Error: " + response.text)
         else:
