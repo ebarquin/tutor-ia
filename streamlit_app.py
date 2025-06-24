@@ -105,7 +105,7 @@ with tab3:
                     # Espera 1.5 segundos para que el usuario vea el mensaje
                     time.sleep(1.5)
                     st.cache_data.clear()
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Error: " + response.text)
         else:
