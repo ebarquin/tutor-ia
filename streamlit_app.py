@@ -6,6 +6,27 @@ API_URL = "https://tutor-ia-api.onrender.com"
 st.set_page_config(page_title="Tutor-IA", layout="centered")
 st.title("🎓 Tutor Inteligente de Apuntes")
 
+@st.cache_data
+def cargar_materias():
+    try:
+        response = requests.get(f"{API_URL}/materias")
+        response.raise_for_status()
+        return response.json()["materias"]
+    except Exception as e:
+        st.error(f"Error al cargar materias: {e}")
+        return []
+
+@st.cache_data
+def cargar_temas(materia):
+    try:
+        response = requests.get(f"{API_URL}/temas", params={"materia": materia})
+        response.raise_for_status()
+        return response.json()["temas"]
+    except Exception as e:
+        st.error(f"Error al cargar temas: {e}")
+        return []
+
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "🤖 Responder pregunta", 
     "🧒 Explicar como niño", 
@@ -16,8 +37,10 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # --- TAB 1: Responder pregunta ---
 with tab1:
     st.header("Haz una pregunta sobre tus apuntes")
-    materia = st.text_input("Materia", key="materia_pregunta")
-    tema = st.text_input("Tema", key="tema_pregunta")
+    materias = cargar_materias()
+    materia = st.selectbox("Materia", materias, key="materia_pregunta")
+    temas = cargar_temas(materia) if materia else []
+    tema = st.selectbox("Tema", temas, key="tema_pregunta")
     pregunta = st.text_area("Pregunta")
 
     if st.button("Enviar pregunta"):
@@ -37,8 +60,10 @@ with tab1:
 # --- TAB 2: Explicar como niño ---
 with tab2:
     st.header("Explica un tema como si tuvieras 12 años")
-    materia_nino = st.text_input("Materia", key="materia_nino")
-    tema_nino = st.text_input("Tema", key="tema_nino")
+    materias = cargar_materias()
+    materia_nino = st.selectbox("Materia", materias, key="materia_nino")
+    temas = cargar_temas(materia_nino) if materia_nino else []
+    tema_nino = st.selectbox("Tema", temas, key="tema_nino")
 
     if st.button("Explicar"):
         if materia_nino and tema_nino:
@@ -80,8 +105,10 @@ with tab3:
 # --- TAB 4: Evaluar desarrollo ---
 with tab4:
     st.header("Evaluar un desarrollo completo de tema")
-    materia_eval = st.text_input("Materia", key="materia_eval")
-    tema_eval = st.text_input("Tema", key="tema_eval")
+    materias = cargar_materias()
+    materia_eval = st.selectbox("Materia", materias, key="materia_eval")
+    temas = cargar_temas(materia_eval) if materia_eval else []
+    tema_eval = st.selectbox("Tema", temas, key="tema_eval")
     titulo_eval = st.text_input("Título del desarrollo", key="titulo_eval")
     desarrollo = st.text_area("Desarrollo del tema", height=300)
 
