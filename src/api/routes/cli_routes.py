@@ -104,3 +104,10 @@ def obtener_temas(materia: str):
         if f.is_dir() and f.name.startswith(f"{materia}__")
     ]
     return sorted(temas)
+
+@router.get("/debug/vectorstores", response_model=List[str])
+def listar_vectorstores():
+    """
+    Endpoint de depuración para listar los nombres de los vectorstores existentes.
+    """
+    return sorted([f.name for f in VECTORSTORE_DIR.iterdir() if f.is_dir()])
