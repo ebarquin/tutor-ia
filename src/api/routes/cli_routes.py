@@ -5,7 +5,7 @@ from src.services.tutor import (
     responder_pregunta_servicio,
     explicar_como_nino_servicio,
     procesar_apunte_completo,
-    evaluar_respuesta_servicio
+    evaluar_desarrollo_servicio
 )
 
 router = APIRouter()
@@ -67,7 +67,7 @@ def evaluar_desarrollo(payload: DesarrolloInput):
     Evalúa un desarrollo completo sobre un tema, comparándolo con los apuntes del alumno.
     """
     try:
-        resultado = evaluar_respuesta_servicio(
+        resultado = evaluar_desarrollo_servicio(
             materia=payload.materia,
             tema=payload.tema,
             titulo_tema=payload.titulo_tema,

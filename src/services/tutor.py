@@ -3,9 +3,15 @@
 from pathlib import Path
 from datetime import datetime
 import shutil
-from src.apuntes.scripts.rag_local import obtener_contexto, responder_con_groq
+from src.apuntes.scripts.rag_local import (
+    obtener_contexto,
+    responder_con_groq,
+    cargar_vectorstore,   # <- 🔧 importante para evaluación
+    client                # <- 🔧 cliente de Groq u OpenAI
+)
+
 from src.apuntes.scripts.analizar_apuntes import analizar
-from src.apuntes.scripts.crear_vectorstore import crear_vectorstore, cargar_vectorstore
+from src.apuntes.scripts.crear_vectorstore import crear_vectorstore
 from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
 
 
@@ -101,6 +107,9 @@ def procesar_apunte_completo(materia: str, tema: str, archivo: str) -> str:
 
 def evaluar_desarrollo_servicio(materia: str, tema: str, titulo_tema: str, desarrollo: str) -> str:
     db = cargar_vectorstore(materia, tema)
+    if db is None:
+        raise ValueError(f"❌ No se encontró el vectorstore para {materia} / {tema}.")
+
     docs_similares = db.similarity_search(titulo_tema, k=4)
     contexto = "\n".join(doc.page_content for doc in docs_similares)
 
@@ -126,7 +135,10 @@ Corrige el desarrollo siguiendo estos puntos:
 
 No añadas información externa. Tu corrección debe ser clara, objetiva y útil para mejorar su aprendizaje.
 """
-    return client.chat.completions.create(
-        model="gpt-4",
+
+    response = client.chat.completions.create(
+        model="llama3-70b-8192", 
         messages=[{"role": "user", "content": prompt}]
-    ).choices[0].message.content
+    )
+
+    return response.choices[0].message.content
