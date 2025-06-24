@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
 from pathlib import Path
 from pydantic import BaseModel
 from typing import List
+
 from src.services.tutor import (
     responder_pregunta_servicio,
     explicar_como_nino_servicio,
@@ -10,6 +11,9 @@ from src.services.tutor import (
 )
 
 router = APIRouter()
+
+# Directorio donde se almacenan los vectorstores
+VECTORSTORE_DIR = Path("src/apuntes/rag/vectorstores")
 
 @router.get("/responder_pregunta")
 def responder_pregunta(
@@ -55,7 +59,7 @@ async def procesar_apunte(
     return {"mensaje": mensaje}
 
 
-# 📌 Modelo para evaluación de respuestas
+# Modelo para evaluación de respuestas
 class DesarrolloInput(BaseModel):
     materia: str
     tema: str  # nombre del tema en los apuntes
@@ -77,9 +81,7 @@ def evaluar_desarrollo(payload: DesarrolloInput):
         return {"evaluacion": resultado}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-    # Directorio donde se almacenan los vectorstores
-VECTORSTORE_DIR = Path("src/apuntes/rag/vectorstores")
+
 
 @router.get("/materias", response_model=List[str])
 def obtener_materias():
@@ -93,6 +95,7 @@ def obtener_materias():
     }
     return sorted(materias)
 
+
 @router.get("/temas", response_model=List[str])
 def obtener_temas(materia: str):
     """
@@ -104,6 +107,7 @@ def obtener_temas(materia: str):
         if f.is_dir() and f.name.startswith(f"{materia}__")
     ]
     return sorted(temas)
+
 
 @router.get("/debug/vectorstores", response_model=List[str])
 def listar_vectorstores():
