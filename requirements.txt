@@ -1,3 +1,11 @@
+# CORE LLM & AGENTS
+langchain==0.3.25
+langchain-community==0.3.25
+langchain-core==0.3.65
+langchain-text-splitters==0.3.8
+langchain-openai==0.1.8
+openai==1.90.0
+
 accelerate==1.8.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
@@ -35,10 +43,6 @@ jiter==0.10.0
 joblib==1.5.1
 jsonpatch==1.33
 jsonpointer==3.0.0
-langchain==0.3.25
-langchain-community==0.3.25
-langchain-core==0.3.65
-langchain-text-splitters==0.3.8
 langdetect==1.0.9
 langsmith==0.3.45
 lxml==5.4.0
@@ -54,7 +58,6 @@ networkx==3.5
 nltk==3.9.1
 numpy==2.3.0
 olefile==0.47
-openai==1.90.0
 orjson==3.10.18
 packaging==24.2
 pdfminer.six==20250506
@@ -113,3 +116,5 @@ uvicorn[standard]==0.29.0
 streamlit
 requests
 python-multipart
+duckduckgo-search==4.4.2
+TTS==0.22.0
