@@ -33,7 +33,7 @@ def cargar_temas(materia):
 materias = cargar_materias()
 
 # --- TABS ---
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🤖 Responder pregunta", 
     "🧒 Explicar como niño", 
     "📄 Subir apunte",
