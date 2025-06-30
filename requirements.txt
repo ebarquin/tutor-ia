@@ -1,9 +1,9 @@
 # CORE LLM & AGENTS
-langchain==0.3.25
-langchain-community==0.3.25
-langchain-core==0.3.65
-langchain-text-splitters==0.3.8
-langchain-openai==0.1.8
+langchain==0.1.13
+langchain-community==0.0.21
+langchain-core==0.0.24
+langchain-text-splitters==0.0.6
+langchain-openai==0.0.6
 openai==1.90.0
 
 accelerate==1.8.1
