@@ -37,7 +37,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "🤖 Responder pregunta", 
     "🧒 Explicar como niño", 
     "📄 Subir apunte",
-    "🧠 Evaluar desarrollo"
+    "🧠 Evaluar desarrollo",
+    "✨ Enriquecer apuntes"
 ])
 
 # --- TAB 1: Responder pregunta ---
@@ -137,3 +138,23 @@ with tab4:
                     st.error("Error: " + response.text)
         else:
             st.warning("Por favor, completa todos los campos antes de enviar.")
+
+# --- TAB 5: Enriquecer apuntes ---
+with tab5:
+    st.header("Enriquecer apuntes con IA")
+    materia_enriq = st.selectbox("Materia", materias, key="materia_enriq")
+    temas_enriq = cargar_temas(materia_enriq) if materia_enriq else []
+    tema_enriq = st.selectbox("Tema", temas_enriq, key="tema_enriq")
+    if st.button("Enriquecer apuntes"):
+        if materia_enriq and tema_enriq:
+            with st.spinner("Enriqueciendo tus apuntes..."):
+                response = requests.post(
+                    f"{API_URL}/enriquecer_apuntes",
+                    params={"materia": materia_enriq, "tema": tema_enriq}
+                )
+                if response.status_code == 200:
+                    st.success(response.json().get("mensaje", "Apuntes enriquecidos correctamente."))
+                else:
+                    st.error("Error: " + response.text)
+        else:
+            st.warning("Selecciona materia y tema.")
