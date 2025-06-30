@@ -7,7 +7,8 @@ from src.services.tutor import (
     responder_pregunta_servicio,
     explicar_como_nino_servicio,
     procesar_apunte_completo,
-    evaluar_desarrollo_servicio
+    evaluar_desarrollo_servicio,
+    enriquecer_apuntes_servicio
 )
 
 router = APIRouter()
@@ -115,3 +116,8 @@ def listar_vectorstores():
     Endpoint de depuración para listar los nombres de los vectorstores existentes.
     """
     return sorted([f.name for f in VECTORSTORE_DIR.iterdir() if f.is_dir()])
+
+@router.post("/enriquecer_apuntes")
+def enriquecer_apuntes(materia: str = Query(...), tema: str = Query(...)):
+    resultado = enriquecer_apuntes_servicio(materia, tema)
+    return {"mensaje": resultado}
