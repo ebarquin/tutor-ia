@@ -13,6 +13,9 @@ from src.apuntes.scripts.rag_local import (
 from src.apuntes.scripts.analizar_apuntes import analizar
 from src.apuntes.scripts.crear_vectorstore import crear_vectorstore
 from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
+from src.apuntes.scripts.agents.agent_tools import enriquecer_apuntes_tool
+from langchain_openai import ChatOpenAI
+import os
 
 
 # ---------- CORE DE FUNCIONES ----------
@@ -139,3 +142,12 @@ No añadas información externa. Tu corrección debe ser clara, objetiva y útil
     )
 
     return response.choices[0].message.content
+
+def enriquecer_apuntes_servicio(materia, tema):
+    llm = ChatOpenAI(
+        api_key=os.getenv("GROQ_API_KEY"),
+        base_url="https://api.groq.com/openai/v1",
+        model="llama3-70b-8192",
+        temperature=0.2
+    )
+    return enriquecer_apuntes_tool(materia, tema, llm)
