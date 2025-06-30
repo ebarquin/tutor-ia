@@ -117,4 +117,3 @@ streamlit
 requests
 python-multipart
 duckduckgo-search==4.4.2
-TTS==0.22.0
