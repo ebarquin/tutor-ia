@@ -1,8 +1,6 @@
-# src/apuntes/scripts/agent_test.py
-
 from langchain_openai import ChatOpenAI
 from langchain.agents import initialize_agent, Tool, AgentType
-from agent_tools import consulta_apuntes_tool
+from apuntes.scripts.agents.agent_tools import consulta_apuntes_tool, analizar_lagunas_en_contexto_tool
 
 llm = ChatOpenAI(
     api_key="tu_groq_api_key",
@@ -23,6 +21,14 @@ tools = [
             "Usa esta herramienta para buscar información relevante en los apuntes del estudiante. "
             "Debes proporcionar una pregunta relacionada con el tema de estudio."
         ),
+    ),
+
+    Tool(
+    name="analizar_lagunas_en_contexto",
+    func=lambda input: analizar_lagunas_en_contexto_tool(
+        contexto=input["contexto"], tema=input["tema"], modelo_llm=llm
+    ),
+    description="Analiza si los apuntes dados sobre un tema tienen carencias, lagunas o incoherencias relevantes."
     )
 ]
 
