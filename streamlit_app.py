@@ -147,13 +147,29 @@ with tab5:
     tema_enriq = st.selectbox("Tema", temas_enriq, key="tema_enriq")
     if st.button("Enriquecer apuntes"):
         if materia_enriq and tema_enriq:
-            with st.spinner("Enriqueciendo tus apuntes..."):
+            with st.spinner("Enriqueciendo tus apuntes... Este proceso puede tardar varios segundos. No cierres la ventana."):
                 response = requests.post(
                     f"{API_URL}/enriquecer_apuntes",
                     params={"materia": materia_enriq, "tema": tema_enriq}
                 )
                 if response.status_code == 200:
-                    st.success(response.json().get("mensaje", "Apuntes enriquecidos correctamente."))
+                    data = response.json().get("mensaje", {})
+                    # Feedback visual mejorado
+                    st.success(data.get("mensaje", "Apuntes enriquecidos correctamente."))
+                    st.markdown(f"**Nº de nuevos chunks:** {data.get('chunks_creados', '?')}")
+                    subtemas = data.get("subtemas_agregados", [])
+                    detalle = data.get("detalle", [])
+                    
+                    if subtemas:
+                        st.markdown("**Subtemas añadidos:**")
+                        for sub in subtemas:
+                            st.markdown(f"- {sub}")
+
+                    if detalle:
+                        st.markdown("---\n**Detalles de los nuevos chunks:**")
+                        for chunk in detalle:
+                            with st.expander(chunk["titulo"]):
+                                st.write(chunk["resumen"])
                 else:
                     st.error("Error: " + response.text)
         else:
