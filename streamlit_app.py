@@ -154,16 +154,17 @@ with tab5:
                 )
                 if response.status_code == 200:
                     data = response.json().get("mensaje", {})
-                    # Feedback visual mejorado
-                    st.success(data.get("mensaje", "Apuntes enriquecidos correctamente."))
-                    st.markdown(f"**Nº de nuevos chunks:** {data.get('chunks_creados', '?')}")
+                    st.balloons()
+                    st.success("🎉 ¡Apuntes enriquecidos correctamente! 🎉")
+                    chunks_creados = data.get("chunks_creados", "?")
+                    st.info(f"Número de nuevos chunks añadidos: **{chunks_creados}**. ¡Sigue así, tu aprendizaje mejora cada día!")
                     subtemas = data.get("subtemas_agregados", [])
                     detalle = data.get("detalle", [])
                     
                     if subtemas:
                         st.markdown("**Subtemas añadidos:**")
                         for sub in subtemas:
-                            st.markdown(f"- {sub}")
+                            st.markdown(f"- ✅ {sub}")
 
                     if detalle:
                         st.markdown("---\n**Detalles de los nuevos chunks:**")
