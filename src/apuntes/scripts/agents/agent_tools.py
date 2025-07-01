@@ -116,7 +116,12 @@ def enriquecer_apuntes_tool(materia, tema, modelo_llm):
     contexto = obtener_todo_contexto_vectorstore(materia, tema)
 
     if not resultado or not contexto:
-        return "No se pudo enriquecer los apuntes por falta de información."
+        return {
+            "mensaje": "No se pudo enriquecer los apuntes por falta de información.",
+            "chunks_creados": 0,
+            "subtemas_agregados": [],
+            "detalle": []
+        }
 
     puntos = resultado.get("ausencias", []) + resultado.get("subtemas_recomendados", [])
     nuevos_chunks = []
@@ -127,7 +132,24 @@ def enriquecer_apuntes_tool(materia, tema, modelo_llm):
             nuevos_chunks.append({"punto": punto, "texto": expansion})
 
     if not nuevos_chunks:
-        return "No se generaron nuevos chunks."
+        return {
+            "mensaje": "No se generaron nuevos chunks.",
+            "chunks_creados": 0,
+            "subtemas_agregados": [],
+            "detalle": []
+        }
 
     insertar_chunks_en_vectorstore(nuevos_chunks, materia, tema)
-    return f"{len(nuevos_chunks)} nuevos chunks añadidos correctamente."
+    # Estructura de respuesta rica:
+    return {
+        "mensaje": f"{len(nuevos_chunks)} nuevos chunks añadidos correctamente.",
+        "chunks_creados": len(nuevos_chunks),
+        "subtemas_agregados": [chunk["punto"] for chunk in nuevos_chunks],
+        "detalle": [
+            {
+                "titulo": chunk["punto"],
+                "resumen": chunk["texto"][:200] + "..." if len(chunk["texto"]) > 200 else chunk["texto"]
+            }
+            for chunk in nuevos_chunks
+        ]
+    }
