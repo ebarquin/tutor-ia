@@ -57,7 +57,7 @@ def limpiar_expansion_en_todos():
 if __name__ == "__main__":
     limpiar_expansion_en_todos()
 
-from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral
+from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral_en_bloques
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
@@ -73,7 +73,7 @@ from dotenv import load_dotenv
 # resultado = generar_clase_magistral("historia", "primera_guerra_mundial", modelo_llm)
 # print(resultado)
 
-from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral, tts_func
+from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral_en_bloques, tts_func
 from langchain_openai import ChatOpenAI
 import os
 
@@ -84,11 +84,12 @@ modelo_llm = ChatOpenAI(
     temperature=0.2
 )
 
-resultado = generar_clase_magistral(
+resultado = generar_clase_magistral_en_bloques(
     "historia",
-    "primera_guerra_mundial",
+    "segunda_guerra_mundial",
     modelo_llm,
-    tts_func=tts_func
+    tts_func=tts_func,
+    max_titulos_bloque=12  # Puedes ajustar este valor
 )
 
 print("\n---- TEXTO DE LA CLASE ----\n")

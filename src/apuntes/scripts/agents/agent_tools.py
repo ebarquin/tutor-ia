@@ -19,9 +19,18 @@ VECTORSTORE_DIR = BASE_DIR / "src" / "apuntes" / "rag" / "vectorstores"
 api_key = os.getenv("ELEVENLABS_API_KEY")
 client = ElevenLabs(api_key=api_key)
 
-# --- HELPERS ---
+# --- HELPERS DE VECTORSTORE ---
+def dividir_en_bloques(lista, tamano):
+    """
+    Divide una lista en bloques de tamaño máximo 'tamano'.
+    """
+    for i in range(0, len(lista), tamano):
+        yield lista[i:i+tamano]
 
 def cargar_vectorstore(materia: str, tema: str):
+    """
+    Carga el vectorstore correspondiente a una materia y tema concreto.
+    """
     ruta = VECTORSTORE_DIR / f"{materia.lower().replace(' ', '_')}__{tema.lower().replace(' ', '_')}"
     if not ruta.exists():
         return None
@@ -30,6 +39,9 @@ def cargar_vectorstore(materia: str, tema: str):
     return store
 
 def obtener_todo_contexto_vectorstore(materia: str, tema: str, max_chunks: int = 10) -> str:
+    """
+    Devuelve el contexto completo (texto de los chunks principales) para un tema.
+    """
     store = cargar_vectorstore(materia, tema)
     if not store:
         return ""
@@ -50,9 +62,29 @@ def obtener_titulos_vectorstore(materia: str, tema: str, max_chunks: int = 12):
             titulos_unicos.append(titulo)
     return titulos_unicos
 
+
+# --- HELPERS DE CONSTRUCCIÓN DE TEXTO BASE ---
+
 def construir_texto_clase_base(titulos: list):
     """Construye el texto base de la clase a partir de los títulos de los chunks."""
     return "\n".join(f"- {t}" for t in titulos if t)
+
+def detectar_subtemas_pobres(materia, tema, min_longitud=80):
+    """
+    Devuelve una lista de subtemas (títulos de chunks) cuyo texto asociado tiene menos de 'min_longitud' palabras.
+    """
+    store = cargar_vectorstore(materia, tema)
+    if not store:
+        return []
+    docs = store.similarity_search("", k=50)
+    subtemas_pobres = []
+    for doc in docs:
+        texto = doc.page_content.strip()
+        titulo = doc.metadata.get("punto") or doc.metadata.get("titulo") or ""
+        if titulo and len(texto.split()) < min_longitud:
+            subtemas_pobres.append({"titulo": titulo, "longitud": len(texto.split())})
+    return subtemas_pobres
+
 
 def crear_prompt_profesor(materia: str, tema: str, texto_clase_base: str):
     """Genera el prompt con instrucciones para el LLM."""
@@ -248,26 +280,70 @@ def enriquecer_apuntes_tool(materia, tema, modelo_llm):
         ]
     }
 
-def generar_clase_magistral(materia, tema, modelo_llm, tts_func=None):
+# def generar_clase_magistral(materia, tema, modelo_llm, tts_func=None):
+#     """
+#     Orquesta el proceso de enriquecer apuntes, obtener títulos, generar el texto (y audio) de la clase magistral.
+#     """
+#     # 1. Enriquecer apuntes
+#     resultado_enriquecimiento = enriquecer_apuntes_tool(materia, tema, modelo_llm)
+#     # 2. Obtener títulos de los chunks
+#     titulos_unicos = obtener_titulos_vectorstore(materia, tema)
+#     texto_clase_base = construir_texto_clase_base(titulos_unicos)
+#     # 3. Crear prompt y generar texto de profesor
+#     prompt_profesor = crear_prompt_profesor(materia, tema, texto_clase_base)
+#     texto_profesor = generar_texto_profesor(prompt_profesor, modelo_llm)
+#     # 4. (Opcional) Audio
+#     audio_url = tts_func(texto_profesor) if tts_func else None
+#     # 5. Estructura de respuesta
+#     return {
+#         "mensaje": resultado_enriquecimiento["mensaje"],
+#         "chunks_creados": resultado_enriquecimiento["chunks_creados"],
+#         "subtemas_agregados": resultado_enriquecimiento["subtemas_agregados"],
+#         "clase_magistral_texto": texto_profesor,
+#         "audio_url": audio_url,
+#         "detalle_chunks": resultado_enriquecimiento.get("detalle", [])
+#     }
+
+def generar_clase_magistral_en_bloques(
+    materia, 
+    tema, 
+    modelo_llm, 
+    tts_func=None, 
+    max_titulos_bloque=12  # Ajusta este valor según el límite de tokens de tu modelo
+):
     """
-    Orquesta el proceso de enriquecer apuntes, obtener títulos, generar el texto (y audio) de la clase magistral.
+    Igual que generar_clase_magistral, pero divide los títulos en bloques para sortear límites de contexto.
+    Une todas las exposiciones en un solo texto final.
     """
-    # 1. Enriquecer apuntes
     resultado_enriquecimiento = enriquecer_apuntes_tool(materia, tema, modelo_llm)
-    # 2. Obtener títulos de los chunks
-    titulos_unicos = obtener_titulos_vectorstore(materia, tema)
-    texto_clase_base = construir_texto_clase_base(titulos_unicos)
-    # 3. Crear prompt y generar texto de profesor
-    prompt_profesor = crear_prompt_profesor(materia, tema, texto_clase_base)
-    texto_profesor = generar_texto_profesor(prompt_profesor, modelo_llm)
-    # 4. (Opcional) Audio
-    audio_url = tts_func(texto_profesor) if tts_func else None
-    # 5. Estructura de respuesta
+    titulos = obtener_titulos_vectorstore(materia, tema, max_chunks=200)  # Usa todos los títulos posibles
+
+    bloques = list(dividir_en_bloques(titulos, max_titulos_bloque))
+    exposiciones = []
+
+    for bloque in bloques:
+        texto_clase_base = construir_texto_clase_base(bloque)
+        prompt_profesor = crear_prompt_profesor(materia, tema, texto_clase_base)
+        texto_profesor = generar_texto_profesor(prompt_profesor, modelo_llm)
+        exposiciones.append(texto_profesor)
+
+    # Une todas las exposiciones en un solo texto (puedes añadir separadores si quieres)
+    texto_completo = "\n\n".join(exposiciones)
+    
+    # TODO: Audio: solo para el primer bloque, por ahorro de costes, aunque ahora mismo comentado por innecesario
+    # if tts_func and texto_completo:
+    #     palabras = texto_completo.split()
+    #     texto_1000 = " ".join(palabras[:1000])
+    #     audio_url = tts_func(texto_1000)
+
+
+    audio_url =  None
+
     return {
         "mensaje": resultado_enriquecimiento["mensaje"],
         "chunks_creados": resultado_enriquecimiento["chunks_creados"],
         "subtemas_agregados": resultado_enriquecimiento["subtemas_agregados"],
-        "clase_magistral_texto": texto_profesor,
+        "clase_magistral_texto": texto_completo,
         "audio_url": audio_url,
         "detalle_chunks": resultado_enriquecimiento.get("detalle", [])
     }
