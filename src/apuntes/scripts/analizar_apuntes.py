@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import pdfplumber
+from transformers import pipeline
+from openai import OpenAI
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -23,6 +25,34 @@ def extraer_texto_pdf(archivo_path):
             texto += page.extract_text() + "\n"
     return texto
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+client = OpenAI(
+    api_key=GROQ_API_KEY,
+    base_url="https://api.groq.com/openai/v1"
+)
+
+
+def generar_titulo(chunk_text):
+    prompt = (
+        "Resume el siguiente texto en un título breve, claro y representativo del contenido. "
+        "Debe ser completo, sin cortar palabras ni poner puntos suspensivos. "
+        "Ideal para un apunte académico (máximo 80 caracteres):\n\n"
+        f"{chunk_text}\n\nTítulo:"
+    )
+    response = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=32,
+        temperature=0.5
+    )
+    raw = response.choices[0].message.content.strip()
+    # Normaliza salida
+    if "Título:" in raw:
+        titulo = raw.split("Título:")[-1].strip()
+    else:
+        titulo = raw.strip()
+    return titulo
+
 def trocear_texto(texto, materia, tema, fuente):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
@@ -32,18 +62,19 @@ def trocear_texto(texto, materia, tema, fuente):
     chunks = splitter.split_text(texto)
     resultado = []
     for i, chunk in enumerate(chunks):
+        titulo_generado = generar_titulo(chunk)
         resultado.append({
             "materia": materia,
             "tema": tema,
             "chunk_id": f"{materia.lower().replace(' ', '_')}_{tema.lower().replace(' ', '_')}_{i+1}",
             "texto": chunk,
+            "titulo": titulo_generado,
             "metadatos": {
                 "fuente": fuente,
                 "posición": i+1
             }
         })
     return resultado
-
 def analizar(materia: str = None, tema: str = None):
     base = cargar_base()
     if not base:
