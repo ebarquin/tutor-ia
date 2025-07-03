@@ -56,3 +56,41 @@ def limpiar_expansion_en_todos():
 
 if __name__ == "__main__":
     limpiar_expansion_en_todos()
+
+from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral
+from langchain_openai import ChatOpenAI
+import os
+from dotenv import load_dotenv
+
+# load_dotenv()
+
+# modelo_llm =ChatOpenAI(
+#     api_key=os.getenv("OPENAI_API_KEY"),
+#     base_url="https://api.groq.com/openai/v1",
+#     model="llama3-70b-8192",
+#     temperature=0.2
+# )  # Ajusta a tu clase/modelo real
+# resultado = generar_clase_magistral("historia", "primera_guerra_mundial", modelo_llm)
+# print(resultado)
+
+from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral, tts_func
+from langchain_openai import ChatOpenAI
+import os
+
+modelo_llm = ChatOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.groq.com/openai/v1",
+    model="llama3-70b-8192",
+    temperature=0.2
+)
+
+resultado = generar_clase_magistral(
+    "historia",
+    "primera_guerra_mundial",
+    modelo_llm,
+    tts_func=tts_func
+)
+
+print("\n---- TEXTO DE LA CLASE ----\n")
+print(resultado["clase_magistral_texto"])
+print("\nRuta del archivo de audio generado:", resultado["audio_url"])
