@@ -118,6 +118,6 @@ def listar_vectorstores():
     return sorted([f.name for f in VECTORSTORE_DIR.iterdir() if f.is_dir()])
 
 @router.post("/enriquecer_apuntes")
-def enriquecer_apuntes(materia: str = Query(...), tema: str = Query(...)):
+def enriquecer_apuntes(materia: str, tema: str):
     resultado = enriquecer_apuntes_servicio(materia, tema)
-    return {"mensaje": resultado}
+    return resultado

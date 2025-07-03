@@ -144,10 +144,31 @@ No añadas información externa. Tu corrección debe ser clara, objetiva y útil
     return response.choices[0].message.content
 
 def enriquecer_apuntes_servicio(materia, tema):
+    store = cargar_vectorstore(materia, tema)
+    docs = store.similarity_search("", k=1000)
+    chunks_expansion = [doc for doc in docs if doc.metadata.get("fuente") == "expansion_llm"]
     llm = ChatOpenAI(
         api_key=os.getenv("GROQ_API_KEY"),
         base_url="https://api.groq.com/openai/v1",
         model="llama3-70b-8192",
         temperature=0.2
     )
-    return enriquecer_apuntes_tool(materia, tema, llm)
+
+    if chunks_expansion:
+        return {
+            "ya_analizado": True,
+            "mensaje": f"Ya se han generado {len(chunks_expansion)} chunks de expansión por LLM para este tema.",
+            "chunks_creados": len(chunks_expansion),
+            "detalle": [
+                {
+                    "contenido": doc.page_content,
+                    "metadata": doc.metadata
+                } for doc in chunks_expansion
+            ]
+        }
+    
+    resultado = enriquecer_apuntes_tool(materia, tema, llm)
+    return {
+        "ya_analizado": False,
+        **resultado
+    }

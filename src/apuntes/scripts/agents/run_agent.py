@@ -28,7 +28,6 @@ tools = [
         ),
         description=(
             "Usa esta herramienta para buscar información relevante en los apuntes del estudiante. "
-            "Debes proporcionar una pregunta relacionada con el tema de estudio."
         ),
     ),
     Tool(
