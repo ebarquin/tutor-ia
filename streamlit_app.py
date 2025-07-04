@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import time
+import json
 
 API_URL = "https://tutor-ia-api.onrender.com"
 
@@ -33,12 +34,13 @@ def cargar_temas(materia):
 materias = cargar_materias()
 
 # --- TABS ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🤖 Responder pregunta", 
     "🧒 Explicar como niño", 
     "📄 Subir apunte",
     "🧠 Evaluar desarrollo",
-    "✨ Enriquecer apuntes"
+    "✨ Enriquecer apuntes",
+    "📚 Clase magistral"
 ])
 
 # --- TAB 1: Responder pregunta ---
@@ -175,3 +177,35 @@ with tab5:
                     st.error("Error: " + response.text)
         else:
             st.warning("Selecciona materia y tema.")
+
+# --- TAB 6: Ver clase magistral generada ---
+with tab6:
+    st.header("📚 Clase magistral generada por IA")
+
+    materia_cm = st.selectbox("Materia", materias, key="materia_cm")
+    temas_cm = cargar_temas(materia_cm) if materia_cm else []
+    tema_cm = st.selectbox("Tema", temas_cm, key="tema_cm")
+
+    if materia_cm and tema_cm:
+        try:
+            with open(f"data/vectorstore/{materia_cm}__{tema_cm}.json", "r", encoding="utf-8") as f:
+                chunks = json.load(f)
+
+            clase = next(
+                (c for c in chunks if c.get("metadata", {}).get("tipo") == "clase_magistral_completa"),
+                None
+            )
+
+            if clase:
+                st.success("✅ Clase magistral encontrada")
+                subtemas = clase["page_content"].split("\n\n")
+
+                for i, bloque in enumerate(subtemas, 1):
+                    with st.expander(f"Subtema {i}", expanded=False):
+                        st.markdown(bloque.strip())
+            else:
+                st.warning("⚠️ No se ha encontrado la clase magistral para este tema.")
+        except FileNotFoundError:
+            st.error("❌ No se encontró el archivo del vectorstore.")
+        except Exception as e:
+            st.error(f"Error leyendo el JSON: {e}")
