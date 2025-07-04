@@ -188,24 +188,59 @@ with tab6:
 
     if materia_cm and tema_cm:
         try:
-            with open(f"data/vectorstore/{materia_cm}__{tema_cm}.json", "r", encoding="utf-8") as f:
+            tema_slug = tema_cm.lower().replace(" ", "_")
+            ruta_json = f"src/apuntes/rag/chunks/{materia_cm}__{tema_slug}.json"
+            st.write(f"📁 Buscando archivo en: `{ruta_json}`")
+
+            with open(ruta_json, "r", encoding="utf-8") as f:
                 chunks = json.load(f)
 
+            # Debug temporal, descomenta si necesitas ver los chunks
+            # st.write("DEBUG: chunks", chunks)
+
             clase = next(
-                (c for c in chunks if c.get("metadata", {}).get("tipo") == "clase_magistral_completa"),
+                (c for c in chunks if c.get("metadata", {}).get("tipo", "").replace(" ", "_").lower() == "clase_magistral_completa"),
                 None
             )
 
             if clase:
                 st.success("✅ Clase magistral encontrada")
-                subtemas = clase["page_content"].split("\n\n")
-
-                for i, bloque in enumerate(subtemas, 1):
-                    with st.expander(f"Subtema {i}", expanded=False):
-                        st.markdown(bloque.strip())
+                st.markdown(clase["page_content"])
+                # (Opcional) botón para copiar texto completo:
+                st.code(clase["page_content"], language="markdown")
             else:
-                st.warning("⚠️ No se ha encontrado la clase magistral para este tema.")
+                st.info("ℹ️ Aún no existe una clase magistral generada para este tema. Pulsa el botón para crearla con IA.")
+                generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn")
+                if generar:
+                    with st.spinner("Generando clase magistral..."):
+                        response = requests.post(
+                            f"{API_URL}/generar_clase_magistral",
+                            params={"materia": materia_cm, "tema": tema_cm}
+                        )
+                        if response.status_code == 200:
+                            st.success("✅ Clase magistral generada. Recarga para visualizarla.")
+                            st.cache_data.clear()
+                            st.session_state["active_tab"] = 5
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al generar la clase magistral: " + response.text)
         except FileNotFoundError:
-            st.error("❌ No se encontró el archivo del vectorstore.")
+            st.info("ℹ️ No existe ningún apunte para este tema. Por favor, sube apuntes antes de generar la clase magistral.")
+            generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn_2")
+            if generar:
+                with st.spinner("Generando clase magistral..."):
+                    response = requests.post(
+                        f"{API_URL}/generar_clase_magistral",
+                        params={"materia": materia_cm, "tema": tema_cm}
+                    )
+                    if response.status_code == 200:
+                        st.success("✅ Clase magistral generada. Recarga para visualizarla.")
+                        st.cache_data.clear()
+                        st.session_state["active_tab"] = 5
+                        st.rerun()
+                    else:
+                        st.error("❌ Error al generar la clase magistral: " + response.text)
         except Exception as e:
             st.error(f"Error leyendo el JSON: {e}")
+
+# (Opcional: setear la tab activa usando st.session_state si Streamlit lo soporta en futuras versiones)
