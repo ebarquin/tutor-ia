@@ -9,7 +9,8 @@ RUTAS_A_LIMPIAR = [
     "uploads"
 ]
 ARCHIVOS_A_BORRAR = [
-    "src/apuntes/db/materias.json"
+    "src/apuntes/db/materias.json",
+    "materias.json"
 ]
 
 def limpiar_directorio(ruta):
@@ -25,13 +26,20 @@ def limpiar_apuntes():
     for ruta in RUTAS_A_LIMPIAR:
         limpiar_directorio(ruta)
         print(f"🧹 Directorio '{ruta}' limpiado.")
+
     for archivo in ARCHIVOS_A_BORRAR:
-        p = Path(archivo)
-        if p.exists():
-            p.unlink()
-            print(f"🗑️ Archivo '{archivo}' borrado.")
-        else:
-            print(f"⚠️ Archivo '{archivo}' no existe, no hay que borrar nada.")
+        # Busca el archivo en la ruta dada y también en la raíz del proyecto
+        posibles_rutas = [
+            Path(archivo),
+            Path("src/apuntes/db") / Path(archivo).name,
+            Path("./") / Path(archivo).name,
+        ]
+        for p in posibles_rutas:
+            if p.exists():
+                p.unlink()
+                print(f"🗑️ Archivo '{p}' borrado.")
+            else:
+                print(f"⚠️ Archivo '{p}' no existe, no hay que borrar nada.")
 
 if __name__ == "__main__":
     limpiar_apuntes()

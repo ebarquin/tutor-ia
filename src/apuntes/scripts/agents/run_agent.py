@@ -5,7 +5,6 @@ from src.apuntes.scripts.agents.agent_tools import (
     analizar_lagunas_en_contexto_tool,
     generar_chunk_expansion_tool,
     insertar_chunks_en_vectorstore_tool,
-    enriquecer_apuntes_tool
 )
 import os
 
@@ -51,18 +50,6 @@ tools = [
             "Debes proporcionar una lista de nuevos_chunks (cada uno con 'punto' y 'texto'), la materia y el tema."
         ),
     ),
-    Tool(
-        name="EnriquecerApuntesAutomaticamente",
-        func=lambda input: enriquecer_apuntes_tool(
-            materia=input["materia"],
-            tema=input["tema"],
-            modelo_llm=llm
-        ),
-        description=(
-            "Analiza los apuntes, genera automáticamente los fragmentos que faltan y los añade al vectorstore. "
-            "Solo debes indicar la materia y el tema."
-        ),
-    )
 ]
 
 # Inicializar agente

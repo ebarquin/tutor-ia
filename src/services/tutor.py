@@ -13,10 +13,8 @@ from src.apuntes.scripts.rag_local import (
 from src.apuntes.scripts.analizar_apuntes import analizar
 from src.apuntes.scripts.crear_vectorstore import crear_vectorstore
 from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
-from src.apuntes.scripts.agents.agent_tools import enriquecer_apuntes_tool
 from langchain_openai import ChatOpenAI
 import os
-
 
 # ---------- CORE DE FUNCIONES ----------
 
