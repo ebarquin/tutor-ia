@@ -9,6 +9,7 @@ import re
 import uuid
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
+import openai
 
 load_dotenv()
 
@@ -213,6 +214,46 @@ def evaluar_calidad_desarrollo(titulo, desarrollo):
         return "pobre"
     else:
         raise ValueError(f"La evaluación del LLM no ha devuelto ni 'rico' ni 'pobre': {salida}")
+
+def limpiar_titulos(texto):
+    # Elimina líneas de títulos típicos (Markdown, mayúsculas, etc.)
+    lineas = texto.split('\n')
+    lineas_limpias = []
+    for linea in lineas:
+        l = linea.strip()
+        # Filtra títulos tipo Markdown o líneas muy cortas/mayúsculas
+        if l.startswith("###") or l.startswith("- "):
+            continue
+        if len(l) < 7 and l.isupper():
+            continue
+        lineas_limpias.append(linea)
+    return "\n".join(lineas_limpias)
+    
+def postprocesar_clase_magistral_groq(texto_clase, groq_api_key):
+    prompt = (
+        "Reescribe el siguiente texto como una lección oral fluida y continua, elimina los títulos de subtema y cualquier repetición. "
+        "Asegúrate de que el resultado esté listo para ser narrado en voz alta por un humano como si fuera un profesor dando una clase. "
+        "Mantén la información completa pero con un hilo argumental claro y sin cortes abruptos.\n\n"
+        "Texto original:\n"
+        f"{texto_clase}\n\n"
+        "Lección continua y lista para audio:"
+    )
+
+    client = openai.OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=groq_api_key
+    )
+    response = client.chat.completions.create(
+        model="llama3-70b-8192",  # O el modelo Groq que uses
+        messages=[
+            {"role": "system", "content": "Eres un experto redactor de clases orales."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=3072,
+        temperature=0.6
+    )
+    texto_limpio = response.choices[0].message.content
+    return texto_limpio
 
 def generar_desarrollo_orquestado(titulo, contexto_base):
     """

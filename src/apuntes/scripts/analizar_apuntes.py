@@ -77,6 +77,7 @@ def trocear_texto(texto, materia, tema, fuente):
     return resultado
 def analizar(materia: str = None, tema: str = None):
     base = cargar_base()
+    print("DEBUG: Base cargada:", base)
     if not base:
         print("❌ No hay datos en 'materias.json'")
         return
@@ -97,8 +98,14 @@ def analizar(materia: str = None, tema: str = None):
         tema = temas[idx_t]
 
     versiones = base[materia][tema]["versiones"]
+    print("DEBUG: Versiones encontradas para tema:", versiones)
+    if not versiones:
+        print("❌ No hay versiones de PDF para este tema.")
+        return
+
     ultima = versiones[-1]["archivo"]
     archivo_path = Path("data/pdf") / ultima
+    print("DEBUG: Archivo PDF a procesar:", archivo_path)
 
     if not archivo_path.exists():
         print("❌ Archivo no encontrado:", archivo_path)
@@ -106,11 +113,14 @@ def analizar(materia: str = None, tema: str = None):
 
     print(f"🔍 Analizando: {archivo_path.name}")
     texto = extraer_texto_pdf(archivo_path)
+    print("DEBUG: Texto extraído, longitud:", len(texto))
     chunks = trocear_texto(texto, materia, tema, ultima)
+    print("DEBUG: Número de chunks generados:", len(chunks))
 
     output_file = CHUNKS_DIR / f"{materia.lower().replace(' ', '_')}__{tema.lower().replace(' ', '_')}.json"
     with open(output_file, "w") as f:
         json.dump(chunks, f, indent=4)
+    print("DEBUG: Archivo JSON guardado en:", output_file)
 
     print(f"✅ {len(chunks)} fragmentos generados y guardados en {output_file}")
 

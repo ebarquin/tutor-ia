@@ -2,6 +2,8 @@ from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
 from pathlib import Path
 from pydantic import BaseModel
 from typing import List
+from src.apuntes.scripts.agents.agent_tools import postprocesar_clase_magistral_groq
+import os
 
 from src.services.tutor import (
     responder_pregunta_servicio,
@@ -117,7 +119,48 @@ def listar_vectorstores():
     """
     return sorted([f.name for f in VECTORSTORE_DIR.iterdir() if f.is_dir()])
 
+
+from src.apuntes.scripts.agents.agente_creador_clase_magistral import (
+    agente_clase_magistral,
+    insertar_clase_magistral_en_json
+)
+
+# Importar la función limpiar_apuntes
+from src.apuntes.scripts.agents.limpiar_apuntes import limpiar_apuntes
+
 @router.post("/enriquecer_apuntes")
 def enriquecer_apuntes(materia: str, tema: str):
     resultado = enriquecer_apuntes_servicio(materia, tema)
     return resultado
+
+
+from fastapi import HTTPException
+
+# Nuevo endpoint para generar clase magistral
+@router.post("/generar_clase_magistral")
+def generar_clase_magistral(materia: str, tema: str):
+    """
+    Genera la clase magistral completa para una materia y tema, y la guarda en el JSON de chunks.
+    """
+    try:
+        print(f"Llamando a agente_clase_magistral para materia={materia}, tema={tema}")
+        subtemas = list(agente_clase_magistral(materia, tema))
+        if not subtemas:
+            raise HTTPException(status_code=404, detail="No se encontraron subtemas para generar la clase magistral.")
+        texto_clase = "\n\n".join([s["desarrollo"] for s in subtemas])
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        texto_clase_limpio = postprocesar_clase_magistral_groq(texto_clase, groq_api_key)
+        insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio)
+        return {"mensaje": "Clase magistral generada correctamente."}
+    except Exception as e:
+        print(f"Error al generar clase magistral: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Endpoint para borrar todos los datos de apuntes, chunks y vectorstores
+@router.post("/borrar_apuntes_todos")
+def borrar_apuntes_todos():
+    """
+    Borra todos los datos de apuntes, chunks y vectorstores.
+    """
+    limpiar_apuntes()
+    return {"mensaje": "¡Todos los datos de apuntes, chunks y vectorstores han sido eliminados!"}

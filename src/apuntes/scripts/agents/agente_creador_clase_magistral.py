@@ -1,4 +1,4 @@
-from src.apuntes.scripts.agents.agent_tools import generar_desarrollo_orquestado
+from src.apuntes.scripts.agents.agent_tools import generar_desarrollo_orquestado, postprocesar_clase_magistral_groq, limpiar_titulos
 from src.apuntes.scripts.crear_vectorstore import cargar_chunks
 import time
 import sys
@@ -6,16 +6,19 @@ import json
 from datetime import datetime
 import os
 
-def insertar_clase_magistral_en_json(materia, tema, texto_clase):
-    ruta_json = f"data/vectorstore/{materia}__{tema}.json"
+def insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio):
+    tema_slug = tema.lower().replace(" ", "_")
+    materia_slug = materia.lower().replace(" ", "_")
+    ruta_json = f"src/apuntes/rag/chunks/{materia_slug}__{tema_slug}.json"
 
     # Cargar JSON existente
     with open(ruta_json, "r", encoding="utf-8") as f:
         chunks = json.load(f)
 
-    # Crear nuevo chunk con el texto completo
+    # Crear nuevo chunk con ambos textos
     clase_chunk = {
-        "page_content": texto_clase,
+        "page_content": texto_clase,                # original con títulos
+        "page_content_audio": texto_clase_limpio,   # versión postprocesada (fluida)
         "metadata": {
             "tipo": "clase_magistral_completa",
             "materia": materia,
@@ -31,10 +34,13 @@ def insertar_clase_magistral_en_json(materia, tema, texto_clase):
     with open(ruta_json, "w", encoding="utf-8") as f:
         json.dump(chunks, f, ensure_ascii=False, indent=2)
 
-    print(f"✅ Clase magistral insertada en {ruta_json}")
+    print(f"✅ Clase magistral (y versión audio) insertada en {ruta_json}")
+
+    # Añadirlo al final
+    chunks.append(clase_chunk)
 
 
-def agente_clase_magistral(materia, tema, max_subtemas=10):
+def agente_clase_magistral(materia, tema, max_subtemas=5):
     """
     Orquesta la generación y evaluación de la clase magistral para una materia y tema dados.
     """
@@ -76,5 +82,14 @@ if __name__ == "__main__":
         time.sleep(0.5)
         subtemas.append(subtema)
 
+    # Construir el texto completo
     texto_clase = "\n\n".join([s["desarrollo"] for s in subtemas])
-    insertar_clase_magistral_en_json(MATERIA, TEMA, texto_clase)
+
+    # --- POSTPROCESADO CON GROQ ---
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    texto_clase_sin_titulos = limpiar_titulos(texto_clase)
+    texto_clase_limpio = postprocesar_clase_magistral_groq(texto_clase_sin_titulos, groq_api_key)
+
+
+    # Guardar ambos textos en JSON
+    insertar_clase_magistral_en_json(MATERIA, TEMA, texto_clase, texto_clase_limpio)
