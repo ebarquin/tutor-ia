@@ -19,18 +19,11 @@ VECTORSTORE_DIR = BASE_DIR / "src" / "apuntes" / "rag" / "vectorstores"
 api_key = os.getenv("ELEVENLABS_API_KEY")
 client = ElevenLabs(api_key=api_key)
 
-# --- HELPERS DE VECTORSTORE ---
 def dividir_en_bloques(lista, tamano):
-    """
-    Divide una lista en bloques de tamaño máximo 'tamano'.
-    """
     for i in range(0, len(lista), tamano):
         yield lista[i:i+tamano]
 
 def cargar_vectorstore(materia: str, tema: str):
-    """
-    Carga el vectorstore correspondiente a una materia y tema concreto.
-    """
     ruta = VECTORSTORE_DIR / f"{materia.lower().replace(' ', '_')}__{tema.lower().replace(' ', '_')}"
     if not ruta.exists():
         return None
@@ -39,9 +32,6 @@ def cargar_vectorstore(materia: str, tema: str):
     return store
 
 def obtener_todo_contexto_vectorstore(materia: str, tema: str, max_chunks: int = 10) -> str:
-    """
-    Devuelve el contexto completo (texto de los chunks principales) para un tema.
-    """
     store = cargar_vectorstore(materia, tema)
     if not store:
         return ""
@@ -50,7 +40,6 @@ def obtener_todo_contexto_vectorstore(materia: str, tema: str, max_chunks: int =
     return contexto
 
 def obtener_titulos_vectorstore(materia: str, tema: str, max_chunks: int = 12):
-    """Devuelve una lista de títulos únicos de los chunks de un vectorstore."""
     store = cargar_vectorstore(materia, tema)
     if not store:
         return []
@@ -62,17 +51,10 @@ def obtener_titulos_vectorstore(materia: str, tema: str, max_chunks: int = 12):
             titulos_unicos.append(titulo)
     return titulos_unicos
 
-
-# --- HELPERS DE CONSTRUCCIÓN DE TEXTO BASE ---
-
 def construir_texto_clase_base(titulos: list):
-    """Construye el texto base de la clase a partir de los títulos de los chunks."""
     return "\n".join(f"- {t}" for t in titulos if t)
 
 def detectar_subtemas_pobres(materia, tema, min_longitud=80):
-    """
-    Devuelve una lista de subtemas (títulos de chunks) cuyo texto asociado tiene menos de 'min_longitud' palabras.
-    """
     store = cargar_vectorstore(materia, tema)
     if not store:
         return []
@@ -85,9 +67,7 @@ def detectar_subtemas_pobres(materia, tema, min_longitud=80):
             subtemas_pobres.append({"titulo": titulo, "longitud": len(texto.split())})
     return subtemas_pobres
 
-
 def crear_prompt_profesor(materia: str, tema: str, texto_clase_base: str):
-    """Genera el prompt con instrucciones para el LLM."""
     return (
         f"Imagina que eres un profesor universitario, experto en el tema '{tema}' de la asignatura '{materia}', "
         "con un punto paternalista, simpático y algo condescendiente (pero no ofensivo). "
@@ -104,7 +84,6 @@ def crear_prompt_profesor(materia: str, tema: str, texto_clase_base: str):
     )
 
 def generar_texto_profesor(prompt, modelo_llm, min_palabras=900, intentos=3):
-    """Genera la exposición, reintentando si no se alcanza el mínimo de palabras."""
     texto_profesor = ""
     for i in range(intentos):
         exposicion_llm = modelo_llm.invoke(prompt)
@@ -117,7 +96,7 @@ def generar_texto_profesor(prompt, modelo_llm, min_palabras=900, intentos=3):
             "\n\n¡IMPORTANTE! El texto anterior NO alcanzó el mínimo requerido. Amplía la exposición hasta superar las 900 palabras reales, "
             "añade explicaciones, ejemplos, historias o analogías, pero no repitas el texto anterior."
         )
-    return texto_profesor  # Devuelve lo que haya aunque no llegue al mínimo
+    return texto_profesor
 
 def tts_func(
     texto,
@@ -125,9 +104,6 @@ def tts_func(
     voz_id="6xftrpatV0jGmFHxDjUv",
     modelo="eleven_multilingual_v2"
 ):
-    """
-    Genera un archivo de audio MP3 a partir de un texto, usando ElevenLabs TTS v2.x.
-    """
     import uuid
     import os
 
@@ -154,196 +130,135 @@ def tts_func(
     except Exception as e:
         print(f"❌ Error al generar audio: {e}")
         return None
-    
 
-# --- TOOLS ---
+# LLMs
+llm_groq = ChatOpenAI(
+    api_key=os.getenv("GROQ_API_KEY"),
+    base_url="https://api.groq.com/openai/v1",
+    model="llama3-70b-8192",
+    temperature=0.2
+)
 
-def analizar_lagunas_en_contexto_tool(materia: str, tema: str, modelo_llm) -> dict:
-    contexto = obtener_todo_contexto_vectorstore(materia, tema)
-    if not contexto:
-        return {"error": "No se encontró información suficiente en los apuntes."}
+llm_gpt35 = ChatOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    model="gpt-3.5-turbo",
+    temperature=0.2
+)
 
-    prompt = (
-        "DEVUELVE SOLO Y ESTRICTAMENTE UN OBJETO JSON como el siguiente ejemplo (NO EXPLICACIONES, NO TÍTULOS):\n"
-        "{\n"
-        '  "ausencias": ["..."],\n'
-        '  "incoherencias": ["..."],\n'
-        '  "subtemas_recomendados": ["..."]\n'
-        "}\n\n"
-        "NO ESCRIBAS NINGUNA PALABRA O COMENTARIO ANTES NI DESPUÉS DEL JSON.\n"
-        f"Eres un experto en el tema '{tema}'. "
-        "Analiza el siguiente texto extraído de los apuntes de un estudiante y responde únicamente a estas preguntas:\n"
-        "1. ¿Qué información relevante sobre el tema falta en estos apuntes?\n"
-        "2. ¿Detectas contradicciones o incoherencias importantes?\n"
-        "3. Si tuvieras que ampliar estos apuntes, ¿qué subtemas incluirías para que fueran más completos?\n"
-        "NO inventes información nueva, solo señala lo que falta o no se explica.\n"
-        "Si todo está completo, di claramente: 'No se detectan lagunas relevantes.'\n\n"
-        f"Tema: {tema}\n\n"
-        "Texto de los apuntes:\n"
-        f"{contexto}\n"
-    )
-    respuesta_llm = modelo_llm.invoke(prompt)
-    respuesta_texto = respuesta_llm.content if hasattr(respuesta_llm, "content") else respuesta_llm
+# --- FUNCIONES DE DESARROLLO Y EVALUACIÓN DE SUBTEMAS ---
 
-    try:
-        resultado = re.search(r'\{.*\}', respuesta_texto, re.DOTALL)
-        if resultado:
-            informe = json.loads(resultado.group())
-        else:
-            raise ValueError("No se encontró JSON válido.")
-    except Exception as e:
-        print("❌ Error al parsear el JSON:", e)
-        print("Respuesta bruta:", respuesta_texto)
-        informe = None
 
-    return informe
-
-def generar_chunk_expansion_tool(materia, tema, punto, contexto, modelo_llm):
-    prompt = (
-        f"Estás ayudando a mejorar unos apuntes de {materia}, tema '{tema}'. "
-        f"El siguiente punto no está bien cubierto en los apuntes:\n\n"
-        f"'{punto}'\n\n"
-        f"Este es el texto actual de los apuntes:\n{contexto}\n\n"
-        "Genera un texto breve, claro y bien estructurado (máx. 120 palabras) para cubrir este punto. "
-        "No repitas el contexto ni hagas introducciones, ve al grano, en el mismo tono que los apuntes. "
-        "Si ya está en los apuntes, di: 'Este punto ya está cubierto'."
-    )
-    respuesta = modelo_llm.invoke(prompt)
-    return respuesta.content if hasattr(respuesta, "content") else str(respuesta)
-
-def insertar_chunks_en_vectorstore(nuevos_chunks, materia, tema):
-    store = cargar_vectorstore(materia, tema)
-    if store is None:
-        print("⚠️ No se pudo cargar el vectorstore.")
-        return False
-
-    documentos_nuevos = [
-        Document(
-            page_content=chunk["texto"],
-            metadata={"fuente": "expansion_llm", "punto": chunk["punto"]}
+def generar_desarrollo_subtema_groq(titulo, contexto_base, prompt_personalizado=None):
+    """
+    Genera el desarrollo del subtema usando Groq (Llama3-70B). Usa prompt estándar o personalizado.
+    """
+    if prompt_personalizado:
+        prompt = prompt_personalizado
+    else:
+        prompt = (
+            f"Eres un profesor universitario preparando una clase magistral.\n"
+            f"Desarrolla el siguiente subtema de forma detallada y clara, orientada a estudiantes universitarios.\n"
+            f"Usa un lenguaje académico, explicaciones claras y ofrece contexto suficiente.\n\n"
+            f"Título del subtema:\n\"{titulo}\"\n\nContexto base del subtema:\n\"{contexto_base}\"\n\nDesarrollo del subtema:"
         )
-        for chunk in nuevos_chunks
-    ]
+    respuesta = llm_groq.invoke(prompt)
+    return respuesta.content.strip()
 
-    store.add_documents(documentos_nuevos)
-
-    ruta_guardado = VECTORSTORE_DIR / f"{materia.lower().replace(' ', '_')}__{tema.lower().replace(' ', '_')}"
-    store.save_local(str(ruta_guardado))
-
-    print(f"✅ {len(documentos_nuevos)} nuevos chunks insertados en el vectorstore de '{tema}'.")
-    return True
-
-def insertar_chunks_en_vectorstore_tool(nuevos_chunks, materia, tema):
-    ok = insertar_chunks_en_vectorstore(nuevos_chunks, materia, tema)
-    return "Inserción completada." if ok else "Fallo al insertar los chunks."
-
-def enriquecer_apuntes_tool(materia, tema, modelo_llm):
-    resultado = analizar_lagunas_en_contexto_tool(materia, tema, modelo_llm)
-    contexto = obtener_todo_contexto_vectorstore(materia, tema)
-
-    if not resultado or not contexto:
-        return {
-            "mensaje": "No se pudo enriquecer los apuntes por falta de información.",
-            "chunks_creados": 0,
-            "subtemas_agregados": [],
-            "detalle": []
-        }
-
-    puntos = resultado.get("ausencias", []) + resultado.get("subtemas_recomendados", [])
-    nuevos_chunks = []
-
-    for punto in puntos:
-        expansion = generar_chunk_expansion_tool(materia, tema, punto, contexto, modelo_llm)
-        if expansion and "ya está cubierto" not in expansion.lower():
-            nuevos_chunks.append({"punto": punto, "texto": expansion})
-
-    if not nuevos_chunks:
-        return {
-            "mensaje": "No se generaron nuevos chunks.",
-            "chunks_creados": 0,
-            "subtemas_agregados": [],
-            "detalle": []
-        }
-
-    insertar_chunks_en_vectorstore(nuevos_chunks, materia, tema)
-    # Estructura de respuesta rica:
-    return {
-        "mensaje": f"{len(nuevos_chunks)} nuevos chunks añadidos correctamente.",
-        "chunks_creados": len(nuevos_chunks),
-        "subtemas_agregados": [chunk["punto"] for chunk in nuevos_chunks],
-        "detalle": [
-            {
-                "titulo": chunk["punto"],
-                "resumen": chunk["texto"][:200] + "..." if len(chunk["texto"]) > 200 else chunk["texto"]
-            }
-            for chunk in nuevos_chunks
-        ]
-    }
-
-# def generar_clase_magistral(materia, tema, modelo_llm, tts_func=None):
-#     """
-#     Orquesta el proceso de enriquecer apuntes, obtener títulos, generar el texto (y audio) de la clase magistral.
-#     """
-#     # 1. Enriquecer apuntes
-#     resultado_enriquecimiento = enriquecer_apuntes_tool(materia, tema, modelo_llm)
-#     # 2. Obtener títulos de los chunks
-#     titulos_unicos = obtener_titulos_vectorstore(materia, tema)
-#     texto_clase_base = construir_texto_clase_base(titulos_unicos)
-#     # 3. Crear prompt y generar texto de profesor
-#     prompt_profesor = crear_prompt_profesor(materia, tema, texto_clase_base)
-#     texto_profesor = generar_texto_profesor(prompt_profesor, modelo_llm)
-#     # 4. (Opcional) Audio
-#     audio_url = tts_func(texto_profesor) if tts_func else None
-#     # 5. Estructura de respuesta
-#     return {
-#         "mensaje": resultado_enriquecimiento["mensaje"],
-#         "chunks_creados": resultado_enriquecimiento["chunks_creados"],
-#         "subtemas_agregados": resultado_enriquecimiento["subtemas_agregados"],
-#         "clase_magistral_texto": texto_profesor,
-#         "audio_url": audio_url,
-#         "detalle_chunks": resultado_enriquecimiento.get("detalle", [])
-#     }
-
-def generar_clase_magistral_en_bloques(
-    materia, 
-    tema, 
-    modelo_llm, 
-    tts_func=None, 
-    max_titulos_bloque=12  # Ajusta este valor según el límite de tokens de tu modelo
-):
+def generar_desarrollo_subtema_gpt35(titulo, contexto_base, prompt_personalizado=None):
     """
-    Igual que generar_clase_magistral, pero divide los títulos en bloques para sortear límites de contexto.
-    Une todas las exposiciones en un solo texto final.
+    Genera el desarrollo del subtema usando GPT-3.5 Turbo. Usa prompt estándar o personalizado.
     """
-    resultado_enriquecimiento = enriquecer_apuntes_tool(materia, tema, modelo_llm)
-    titulos = obtener_titulos_vectorstore(materia, tema, max_chunks=200)  # Usa todos los títulos posibles
+    if prompt_personalizado:
+        prompt = prompt_personalizado
+    else:
+        prompt = (
+            f"Eres un profesor universitario preparando una clase magistral.\n"
+            f"Desarrolla el siguiente subtema de forma detallada y clara, orientada a estudiantes universitarios.\n"
+            f"Usa un lenguaje académico, explicaciones claras y ofrece contexto suficiente.\n\n"
+            f"Título del subtema:\n\"{titulo}\"\n\nContexto base del subtema:\n\"{contexto_base}\"\n\nDesarrollo del subtema:"
+        )
+    respuesta = llm_gpt35.invoke(prompt)
+    return respuesta.content.strip()
 
-    bloques = list(dividir_en_bloques(titulos, max_titulos_bloque))
+def generar_prompt_especifico_groq(titulo, contexto_base):
+    """
+    Genera un prompt específico con Groq para mejorar el desarrollo de un subtema concreto.
+    """
+    prompt = (
+        f"El desarrollo generado para el siguiente subtema ha sido considerado insuficiente.\n"
+        f"Crea un prompt muy específico y eficaz que pueda usarse con un modelo LLM para obtener una mejor versión.\n\n"
+        f"Título del subtema:\n\"{titulo}\"\n\nContexto base:\n\"{contexto_base}\"\n\n"
+        "Genera solo el prompt, sin introducciones ni explicaciones adicionales."
+    )
+    respuesta = llm_groq.invoke(prompt)
+    return respuesta.content.strip()
+
+def evaluar_calidad_desarrollo(titulo, desarrollo):
+    """
+    Evalúa si el desarrollo generado de un subtema es rico o pobre.
+    Devuelve 'rico' o 'pobre'. Si no es ninguno, lanza error.
+    """
+    prompt = (
+        f"Actúa como evaluador de apuntes universitarios. Evalúa si el siguiente desarrollo de un subtema "
+        f"es suficientemente profundo, estructurado y explicativo como para formar parte de una clase magistral.\n\n"
+        f"Título del subtema:\n\"{titulo}\"\n\nDesarrollo del subtema:\n{desarrollo}\n\n"
+        "Tu evaluación debe ser solo una palabra: rico o pobre."
+    )
+    respuesta = llm_groq.invoke(prompt)
+    salida = respuesta.content if hasattr(respuesta, "content") else str(respuesta)
+    salida = salida.strip().lower().replace('.', '').replace(':', '').replace('¿', '').replace('?', '').replace('¡', '').replace('!', '')
+    if "rico" in salida:
+        return "rico"
+    elif "pobre" in salida:
+        return "pobre"
+    else:
+        raise ValueError(f"La evaluación del LLM no ha devuelto ni 'rico' ni 'pobre': {salida}")
+
+def generar_desarrollo_orquestado(titulo, contexto_base):
+    """
+    Nuevo pipeline:
+      1. Groq (prompt general)
+      2. Si pobre, Groq con prompt específico
+      3. Si pobre, GPT3.5 con prompt específico
+    """
+    # Paso 1: Groq (genérico)
+    desarrollo_1 = generar_desarrollo_subtema_groq(titulo, contexto_base)
+    try:
+        evaluacion_1 = evaluar_calidad_desarrollo(titulo, desarrollo_1)
+    except Exception as e:
+        print(f"⚠️ Error evaluando calidad Groq: {e}")
+        evaluacion_1 = "pobre"
+    if evaluacion_1 == "rico":
+        return desarrollo_1
+
+    # Paso 2: Groq con prompt específico
+    prompt_especifico = generar_prompt_especifico_groq(titulo, contexto_base)
+    desarrollo_2 = generar_desarrollo_subtema_groq(titulo, contexto_base, prompt_personalizado=prompt_especifico)
+    try:
+        evaluacion_2 = evaluar_calidad_desarrollo(titulo, desarrollo_2)
+    except Exception as e:
+        print(f"⚠️ Error evaluando calidad Groq (prompt específico): {e}")
+        evaluacion_2 = "pobre"
+    if evaluacion_2 == "rico":
+        return desarrollo_2
+
+    # Paso 3: GPT3.5 Turbo con prompt específico
+    desarrollo_3 = generar_desarrollo_subtema_gpt35(titulo, contexto_base, prompt_personalizado=prompt_especifico)
+    # Se devuelve aunque sea pobre (último intento)
+    return desarrollo_3
+
+def generar_clase_magistral_avanzada(materia: str, tema: str, max_subtemas: int = 10):
+    """
+    Orquesta la generación de la clase magistral desarrollando todos los subtemas/títulos principales.
+    """
+    titulos = obtener_titulos_vectorstore(materia, tema, max_chunks=max_subtemas)
+    print(f"Generando desarrollo para {len(titulos)} subtemas...")
     exposiciones = []
-
-    for bloque in bloques:
-        texto_clase_base = construir_texto_clase_base(bloque)
-        prompt_profesor = crear_prompt_profesor(materia, tema, texto_clase_base)
-        texto_profesor = generar_texto_profesor(prompt_profesor, modelo_llm)
-        exposiciones.append(texto_profesor)
-
-    # Une todas las exposiciones en un solo texto (puedes añadir separadores si quieres)
-    texto_completo = "\n\n".join(exposiciones)
-    
-    # TODO: Audio: solo para el primer bloque, por ahorro de costes, aunque ahora mismo comentado por innecesario
-    # if tts_func and texto_completo:
-    #     palabras = texto_completo.split()
-    #     texto_1000 = " ".join(palabras[:1000])
-    #     audio_url = tts_func(texto_1000)
-
-
-    audio_url =  None
-
-    return {
-        "mensaje": resultado_enriquecimiento["mensaje"],
-        "chunks_creados": resultado_enriquecimiento["chunks_creados"],
-        "subtemas_agregados": resultado_enriquecimiento["subtemas_agregados"],
-        "clase_magistral_texto": texto_completo,
-        "audio_url": audio_url,
-        "detalle_chunks": resultado_enriquecimiento.get("detalle", [])
-    }
+    for i, titulo in enumerate(titulos, 1):
+        print(f"\n--- [{i}/{len(titulos)}] Desarrollando: {titulo} ---")
+        # Puedes obtener el contexto base de cada chunk o un contexto general si lo prefieres
+        contexto_base = ""  # O usa el chunk asociado si lo tienes
+        desarrollo = generar_desarrollo_orquestado(titulo, contexto_base)
+        exposiciones.append(f"### {titulo}\n\n{desarrollo}")
+    clase_magistral = "\n\n".join(exposiciones)
+    return clase_magistral

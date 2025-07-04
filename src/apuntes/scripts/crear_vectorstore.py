@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
@@ -25,11 +25,13 @@ def cargar_chunks(materia, tema):
 
     documentos = []
     for chunk in datos:
-        metadatos = chunk.get("metadatos", {})
+        metadatos = chunk.get("metadatos", {}).copy()
         metadatos.update({
-            "materia": chunk["materia"],
-            "tema": chunk["tema"],
-            "chunk_id": chunk["chunk_id"]
+            "materia": chunk.get("materia"),
+            "tema": chunk.get("tema"),
+            "chunk_id": chunk.get("chunk_id"),
+            # <<< Añade esto para asegurar título aunque esté suelto >>>
+            "titulo": chunk.get("titulo") or metadatos.get("titulo"),
         })
         documentos.append(Document(page_content=chunk["texto"], metadata=metadatos))
     return documentos
