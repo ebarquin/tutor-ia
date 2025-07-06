@@ -1,3 +1,4 @@
+from streamlit_option_menu import option_menu
 import streamlit as st
 import requests
 import time
@@ -8,10 +9,81 @@ st.cache_data.clear()
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="Tutor-IA", layout="centered")
-st.title("🎓 Tutor Inteligente de Apuntes")
+
+# Personalización del sidebar
+st.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        background-color: #ffffff;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Logo
+st.sidebar.image("tutor_ia_logo.png", width=120)
+st.sidebar.title("Tutor-IA")
+
+# --- NUEVO MENÚ LATERAL: TODAS LAS OPCIONES VISIBLES ---
+menu_options = [
+    ("Portada", "house"),
+    ("Gestión de apuntes", "folder"),
+    ("  Subir apuntes", ""),    # Subopciones con dos espacios al principio
+    ("  Enriquecer apuntes", ""),
+    ("Evaluación", "check2-circle"),
+    ("  Evaluar desarrollo", ""),
+    ("Consultar", "search"),
+    ("  Responder pregunta", ""),
+    ("  Explicar como un niño", ""),
+    ("Formación", "book"),
+    ("  Clase magistral", ""),
+    ("Administración", "gear"),
+    ("  Borrar apuntes (admin)", ""),
+]
+labels, icons = zip(*menu_options)
+
+with st.sidebar:
+    selected = option_menu(
+        menu_title=None,
+        options=labels,
+        icons=icons,
+        menu_icon="cast",
+        default_index=0,
+        orientation="vertical",
+        styles={
+            "container": {"background-color": "#fff", "padding": "12px"},
+            "icon": {"color": "#E76F51", "font-size": "18px"},
+            "nav-link": {
+                "font-size": "17px",
+                "text-align": "left",
+                "margin":"0px",
+                "color": "#1a3247",
+                "font-weight": "normal"
+            },
+            "nav-link-selected": {
+                "background-color": "#e3e3e3",
+                "color": "#222",
+                "font-weight": "bold"
+            },
+        }
+    )
+
+# --- Control para que los títulos no tengan acción ---
+# Las subopciones empiezan con dos espacios
+subopciones_validas = [opt for opt in labels if opt.startswith("  ")]
+# Opciones principales (títulos de sección, sin espacios al principio, excepto Portada)
+secciones = {"Gestión de apuntes", "Evaluación", "Consultar", "Formación", "Administración"}
+
+# Guardamos la última subopción elegida
+if "last_valid_option" not in st.session_state:
+    st.session_state["last_valid_option"] = "Portada"
+
+if selected in secciones:
+    # Si el usuario pulsa una sección, restauramos la última subopción o Portada
+    selected = st.session_state["last_valid_option"]
+elif selected in subopciones_validas or selected == "Portada":
+    st.session_state["last_valid_option"] = selected
 
 # --- FUNCIONES DE CARGA ---
-
 @st.cache_data
 def cargar_materias():
     try:
@@ -32,65 +104,18 @@ def cargar_temas(materia):
         st.error(f"Error al cargar temas: {e}")
         return []
 
-# --- CARGAR MATERIAS UNA SOLA VEZ ---
 materias = cargar_materias()
 
-# --- TABS ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🤖 Responder pregunta", 
-    "🧒 Explicar como niño", 
-    "📄 Subir apunte",
-    "🧠 Evaluar desarrollo",
-    "✨ Enriquecer apuntes",
-    "📚 Clase magistral",
-    "🧹 Borrar apuntes (admin)"
-])
+if selected == "Portada":
+    st.title("🎓 Tutor Inteligente de Apuntes")
+    st.markdown("""
+    ¡Bienvenido a **Tutor-IA**!  
+    Plataforma para crear, enriquecer y consultar tus apuntes con inteligencia artificial.  
+    Selecciona una sección en el menú lateral para comenzar.
+    """)
+    st.info("¿Tienes dudas, feedback o sugerencias? Contacta con el equipo Tutor-IA.")
 
-# --- TAB 1: Responder pregunta ---
-with tab1:
-    st.header("Haz una pregunta sobre tus apuntes")
-    materia = st.selectbox("Materia", materias, key="materia_pregunta")
-    temas = cargar_temas(materia) if materia else []
-    tema = st.selectbox("Tema", temas, key="tema_pregunta")
-    pregunta = st.text_area("Pregunta")
-
-    if st.button("Enviar pregunta"):
-        if materia and tema and pregunta:
-            with st.spinner("Obteniendo respuesta..."):
-                response = requests.get(
-                    f"{API_URL}/responder_pregunta",
-                    params={"materia": materia, "tema": tema, "pregunta": pregunta}
-                )
-                if response.status_code == 200:
-                    st.success(response.json()["respuesta"])
-                else:
-                    st.error("Error: " + response.text)
-        else:
-            st.warning("Por favor, completa todos los campos.")
-
-# --- TAB 2: Explicar como niño ---
-with tab2:
-    st.header("Explica un tema como si tuvieras 12 años")
-    materia_nino = st.selectbox("Materia", materias, key="materia_nino")
-    temas_nino = cargar_temas(materia_nino) if materia_nino else []
-    tema_nino = st.selectbox("Tema", temas_nino, key="tema_nino")
-
-    if st.button("Explicar"):
-        if materia_nino and tema_nino:
-            with st.spinner("Generando explicación..."):
-                response = requests.get(
-                    f"{API_URL}/explicar_como_nino",
-                    params={"materia": materia_nino, "tema": tema_nino}
-                )
-                if response.status_code == 200:
-                    st.success(response.json()["explicacion"])
-                else:
-                    st.error("Error: " + response.text)
-        else:
-            st.warning("Por favor, completa ambos campos.")
-
-# --- TAB 3: Subir apunte ---
-with tab3:
+elif selected.strip() == "Subir apuntes":
     st.header("Subir y procesar nuevo apunte")
     materia_subir = st.text_input("Materia", key="materia_subir")
     tema_subir = st.text_input("Tema", key="tema_subir")
@@ -106,47 +131,17 @@ with tab3:
                     data=data,
                     files=files
                 )
-                st.write("Respuesta API:", response.status_code, response.text)  # DEBUG LINEA AÑADIDA
                 if response.status_code == 200:
                     st.success(response.json()["mensaje"])
-                    # Espera 1.5 segundos para que el usuario vea el mensaje
                     time.sleep(1.5)
                     st.cache_data.clear()
-                    st.rerun()
+                    st.experimental_rerun()
                 else:
                     st.error("Error: " + response.text)
         else:
             st.warning("Por favor, completa todos los campos y selecciona un archivo.")
 
-# --- TAB 4: Evaluar desarrollo ---
-with tab4:
-    st.header("Evaluar un desarrollo completo de tema")
-    materia_eval = st.selectbox("Materia", materias, key="materia_eval")
-    temas_eval = cargar_temas(materia_eval) if materia_eval else []
-    tema_eval = st.selectbox("Tema", temas_eval, key="tema_eval")
-    titulo_eval = st.text_input("Título del desarrollo", key="titulo_eval")
-    desarrollo = st.text_area("Desarrollo del tema", height=300)
-
-    if st.button("Enviar desarrollo para evaluación"):
-        if materia_eval and tema_eval and titulo_eval and desarrollo:
-            with st.spinner("Evaluando tu desarrollo..."):
-                payload = {
-                    "materia": materia_eval,
-                    "tema": tema_eval,
-                    "titulo_tema": titulo_eval,
-                    "desarrollo": desarrollo
-                }
-                response = requests.post(f"{API_URL}/evaluar_desarrollo", json=payload)
-                if response.status_code == 200:
-                    st.markdown("### 📝 Evaluación")
-                    st.success(response.json()["evaluacion"])
-                else:
-                    st.error("Error: " + response.text)
-        else:
-            st.warning("Por favor, completa todos los campos antes de enviar.")
-
-# --- TAB 5: Enriquecer apuntes ---
-with tab5:
+elif selected.strip() == "Enriquecer apuntes":
     st.header("Enriquecer apuntes con IA")
     materia_enriq = st.selectbox("Materia", materias, key="materia_enriq")
     temas_enriq = cargar_temas(materia_enriq) if materia_enriq else []
@@ -182,10 +177,75 @@ with tab5:
         else:
             st.warning("Selecciona materia y tema.")
 
-# --- TAB 6: Ver clase magistral generada ---
-with tab6:
-    st.header("📚 Clase magistral generada por IA")
+elif selected.strip() == "Evaluar desarrollo":
+    st.header("Evaluar un desarrollo completo de tema")
+    materia_eval = st.selectbox("Materia", materias, key="materia_eval")
+    temas_eval = cargar_temas(materia_eval) if materia_eval else []
+    tema_eval = st.selectbox("Tema", temas_eval, key="tema_eval")
+    titulo_eval = st.text_input("Título del desarrollo", key="titulo_eval")
+    desarrollo = st.text_area("Desarrollo del tema", height=300)
 
+    if st.button("Enviar desarrollo para evaluación"):
+        if materia_eval and tema_eval and titulo_eval and desarrollo:
+            with st.spinner("Evaluando tu desarrollo..."):
+                payload = {
+                    "materia": materia_eval,
+                    "tema": tema_eval,
+                    "titulo_tema": titulo_eval,
+                    "desarrollo": desarrollo
+                }
+                response = requests.post(f"{API_URL}/evaluar_desarrollo", json=payload)
+                if response.status_code == 200:
+                    st.markdown("### 📝 Evaluación")
+                    st.success(response.json()["evaluacion"])
+                else:
+                    st.error("Error: " + response.text)
+        else:
+            st.warning("Por favor, completa todos los campos antes de enviar.")
+
+elif selected.strip() == "Responder pregunta":
+    st.header("Haz una pregunta sobre tus apuntes")
+    materia = st.selectbox("Materia", materias, key="materia_pregunta")
+    temas = cargar_temas(materia) if materia else []
+    tema = st.selectbox("Tema", temas, key="tema_pregunta")
+    pregunta = st.text_area("Pregunta")
+
+    if st.button("Enviar pregunta"):
+        if materia and tema and pregunta:
+            with st.spinner("Obteniendo respuesta..."):
+                response = requests.get(
+                    f"{API_URL}/responder_pregunta",
+                    params={"materia": materia, "tema": tema, "pregunta": pregunta}
+                )
+                if response.status_code == 200:
+                    st.success(response.json()["respuesta"])
+                else:
+                    st.error("Error: " + response.text)
+        else:
+            st.warning("Por favor, completa todos los campos.")
+
+elif selected.strip() == "Explicar como un niño":
+    st.header("Explica un tema como si tuvieras 12 años")
+    materia_nino = st.selectbox("Materia", materias, key="materia_nino")
+    temas_nino = cargar_temas(materia_nino) if materia_nino else []
+    tema_nino = st.selectbox("Tema", temas_nino, key="tema_nino")
+
+    if st.button("Explicar"):
+        if materia_nino and tema_nino:
+            with st.spinner("Generando explicación..."):
+                response = requests.get(
+                    f"{API_URL}/explicar_como_nino",
+                    params={"materia": materia_nino, "tema": tema_nino}
+                )
+                if response.status_code == 200:
+                    st.success(response.json()["explicacion"])
+                else:
+                    st.error("Error: " + response.text)
+        else:
+            st.warning("Por favor, completa ambos campos.")
+
+elif selected.strip() == "Clase magistral":
+    st.header("📚 Clase magistral generada por IA")
     materia_cm = st.selectbox("Materia", materias, key="materia_cm")
     temas_cm = cargar_temas(materia_cm) if materia_cm else []
     tema_cm = st.selectbox("Tema", temas_cm, key="tema_cm")
@@ -198,9 +258,6 @@ with tab6:
 
             with open(ruta_json, "r", encoding="utf-8") as f:
                 chunks = json.load(f)
-
-            # Debug temporal, descomenta si necesitas ver los chunks
-            # st.write("DEBUG: chunks", chunks)
 
             clase = next(
                 (c for c in chunks if c.get("metadata", {}).get("tipo", "").replace(" ", "_").lower() == "clase_magistral_completa"),
@@ -222,8 +279,7 @@ with tab6:
                         if response.status_code == 200:
                             st.success("✅ Clase magistral generada. Recarga para visualizarla.")
                             st.cache_data.clear()
-                            st.session_state["active_tab"] = 5
-                            st.rerun()
+                            st.experimental_rerun()
                         else:
                             st.error("❌ Error al generar la clase magistral: " + response.text)
         except FileNotFoundError:
@@ -238,17 +294,13 @@ with tab6:
                     if response.status_code == 200:
                         st.success("✅ Clase magistral generada. Recarga para visualizarla.")
                         st.cache_data.clear()
-                        st.session_state["active_tab"] = 5
-                        st.rerun()
+                        st.experimental_rerun()
                     else:
                         st.error("❌ Error al generar la clase magistral: " + response.text)
         except Exception as e:
             st.error(f"Error leyendo el JSON: {e}")
 
-# (Opcional: setear la tab activa usando st.session_state si Streamlit lo soporta en futuras versiones)
-
-# --- TAB 7: Borrar apuntes (solo admin/desarrollo) ---
-with tab7:
+elif selected.strip() == "Borrar apuntes (admin)":
     st.header("🧹 Borrar todos los apuntes del sistema")
     if st.button("🧹 Borrar todos los apuntes", key="borrar_todos_apuntes_btn"):
         with st.spinner("Borrando todos los apuntes..."):
@@ -256,6 +308,14 @@ with tab7:
             if response.status_code == 200:
                 st.success("✅ Todos los apuntes borrados correctamente.")
                 st.cache_data.clear()
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("❌ Error al borrar los apuntes: " + response.text)
+
+# --- FOOTER ---
+st.sidebar.markdown("""
+    <div style='background-color: #e3f0fa; padding: 16px; border-radius: 8px; color: #1a3247; font-weight: 500;'>
+        Plataforma Tutor-IA · v1.0<br>
+        Un proyecto de aprendizaje con IA 🤖
+    </div>
+""", unsafe_allow_html=True)
