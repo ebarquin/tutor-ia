@@ -65,8 +65,8 @@ st.markdown("""
         color: #b8d6e8 !important;
         opacity: 1 !important;
     }
-    /* BOTONES */
-    .stButton>button {
+    /* BOTONES (fuera y dentro de formularios) */
+    .stButton>button, form .stButton>button {
         background-color: #1cd4d4 !important;
         color: #fff !important;
         font-weight: bold !important;
@@ -74,7 +74,7 @@ st.markdown("""
         border: none !important;
         padding: 0.6em 1.5em !important;
     }
-    .stButton>button:hover {
+    .stButton>button:hover, form .stButton>button:hover {
         background-color: #24b7b7 !important;
         color: #fff !important;
     }
@@ -169,12 +169,26 @@ st.markdown("""
     }
     /* Forzar color oscuro en errores de excepción de Streamlit */
     .stException, .stException *, .stException pre, .stException code, .stException span, .stException div {
-    color: #444444 !important;          /* Gris oscuro suave */
-    background-color: #ffd9d9 !important;
-    font-weight: bold !important;
-    text-shadow: none !important;
-    opacity: 1 !important;
-}
+        color: #444444 !important;          /* Gris oscuro suave */
+        background-color: #ffd9d9 !important;
+        font-weight: bold !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+    }
+     /* Estilos para los botones en formularios (form_submit_button) */
+    .stForm .stButton>button {
+        background-color: #1cd4d4 !important;
+        color: #fff !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        border: none !important;
+        padding: 0.6em 1.5em !important;
+        margin: 0 8px 0 0 !important;
+    }
+    .stForm .stButton>button:hover {
+        background-color: #24b7b7 !important;
+        color: #fff !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -188,7 +202,9 @@ st.set_page_config(page_title="Tutor-IA", layout="centered")
 st.sidebar.image("tutor_ia_logo.png", width=120)
 st.sidebar.title("Tutor-IA")
 
+#
 # --- NUEVO MENÚ LATERAL: TODAS LAS OPCIONES VISIBLES ---
+# Añadimos "💬 Chat explicativo" justo antes de "Formación"
 menu_options = [
     ("Portada", "house"),
     ("Gestión de apuntes", "folder"),
@@ -199,6 +215,7 @@ menu_options = [
     ("Consultar", "search"),
     ("    Responder pregunta", ""),
     ("    Explicar como un niño", ""),
+    ("💬 Chat explicativo", "chat-dots"),
     ("Formación", "book"),
     ("    Clase magistral", ""),
     ("Administración", "gear"),
@@ -445,6 +462,53 @@ elif selected.strip() == "Explicar como un niño":
                     st.error(f"❌ {detail}")
         else:
             st.warning("Por favor, completa ambos campos.")
+
+# --- Chat explicativo Tutor-IA ---
+elif selected.strip() == "💬 Chat explicativo":
+    # 1. Inicializa el historial de chat si no existe
+    if "chat_history" not in st.session_state:
+        st.session_state["chat_history"] = []
+    # 2. Inicializa el contador para limpiar el input
+    if "chat_input_key" not in st.session_state:
+        st.session_state["chat_input_key"] = 0
+
+    st.title("Chat explicativo Tutor-IA")
+    st.markdown("Interactúa con el Tutor-IA para recibir explicaciones personalizadas sobre cualquier tema.")
+    st.divider()
+
+    # --- Mostrar historial de mensajes (siempre arriba) ---
+    chat_history = st.session_state["chat_history"]
+    if chat_history:
+        for entry in chat_history:
+            if entry["role"] == "user":
+                st.markdown(f'<div style="background:#d2eafb; border-radius:8px; padding:8px; margin-bottom:4px;"><b>Usuario:</b> {entry["content"]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div style="background:#e3f0fa; border-radius:8px; padding:8px; margin-bottom:8px;"><b>Tutor:</b> {entry["content"]}</div>', unsafe_allow_html=True)
+    else:
+        st.info("El chat está vacío. ¡Haz tu primera pregunta!")
+
+    # --- Campo de texto para nueva pregunta (debajo del historial) ---
+    user_input = st.text_input("Escribe tu pregunta", key=f"chat_input_{st.session_state['chat_input_key']}")
+
+    # --- Botones "Enviar" y "Limpiar chat" juntos, debajo del input ---
+    col1, col2 = st.columns([1, 1])
+    enviar = col1.button("Enviar")
+    limpiar = col2.button("Limpiar chat")
+
+    # --- Acciones de los botones ---
+    if limpiar:
+        st.session_state["chat_history"] = []
+        st.session_state["chat_input_key"] = 0
+        st.experimental_rerun()
+
+    if enviar and user_input.strip():
+        # Añadir mensaje del usuario al historial
+        st.session_state["chat_history"].append({"role": "user", "content": user_input.strip()})
+        # --- Aquí es donde se haría la llamada real al endpoint del chat explicativo ---
+        # Por ahora, añadimos respuesta simulada:
+        st.session_state["chat_history"].append({"role": "tutor", "content": "Respuesta generada por IA (simulada)."})
+        st.session_state["chat_input_key"] += 1
+        st.experimental_rerun()
 
 elif selected.strip() == "Clase magistral":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
