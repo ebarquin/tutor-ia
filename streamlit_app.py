@@ -4,20 +4,167 @@ import requests
 import time
 import json
 import os
+
 st.cache_data.clear()
+
+# --- Personalización visual global y del sidebar ---
+st.markdown("""
+    <style>
+    /* FONDO GENERAL */
+    body, .stApp {
+        background-color: #f6f8fc !important;
+        color: #14314f !important;
+    }
+    /* SIDEBAR fondo */
+    [data-testid="stSidebar"] {
+        background-color: #fff !important;
+    }
+    /* TITULOS Y TEXTOS PRINCIPALES */
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
+    .stMarkdown h5, .stMarkdown h6,
+    .stText, .stApp, .stMarkdown, .css-10trblm, .css-1v3fvcr {
+        color: #14314f !important;
+    }
+    /* LABELS DE INPUTS */
+    label, .stTextInput label, .stSelectbox label {
+        color: #20567a !important;
+        font-weight: 600 !important;
+    }
+    /* INPUTS Y SELECTBOXES MÁS CLAROS */
+    .stTextInput>div>div>input, .stSelectbox>div>div>div>input, .stSelectbox>div>div {
+        background-color: #d2eafb !important;
+        color: #14314f !important;
+        border-radius: 8px !important;
+        border: 1.5px solid #1cd4d4 !important;
+        font-weight: 600 !important;
+    }
+    /* Desplegables */
+    .stSelectbox>div>div {
+        min-height: 48px !important;
+        border-radius: 8px !important;
+        background-color: #d2eafb !important;
+        color: #14314f !important;
+        border: 1.5px solid #1cd4d4 !important;
+        font-weight: 600 !important;
+    }
+    /* CURSOR DEL INPUT */
+    input, textarea {
+        caret-color: #14314f !important;
+    }
+    input::placeholder, textarea::placeholder {
+        color: #b8d6e8 !important;
+        opacity: 1 !important;
+    }
+    /* BOTONES */
+    .stButton>button {
+        background-color: #1cd4d4 !important;
+        color: #fff !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        border: none !important;
+        padding: 0.6em 1.5em !important;
+    }
+    .stButton>button:hover {
+        background-color: #24b7b7 !important;
+        color: #fff !important;
+    }
+    .stAlert, .stInfo {
+        background-color: #d2f2fb !important;
+        color: #14314f !important;
+        font-weight: 700 !important;
+        border-left: 5px solid #1cd4d4 !important;
+    }
+    .stAlert p, .stInfo p, .stAlert span, .stInfo span {
+        color: #14314f !important;
+    }
+    .stWarning {
+        background-color: #fff3cd !important;
+        color: #664d03 !important;
+        border-left: 5px solid #ffe066 !important;
+    }
+    .stSuccess {
+        background-color: #d2fbe3 !important;
+        color: #205732 !important;
+        border-left: 5px solid #1cd485 !important;
+    }
+    .stError {
+        background-color: #ffd9d9 !important;
+        color: #ab1e1e !important;
+        border-left: 5px solid #e76f51 !important;
+    }
+    /* CUADRO DE FILE UPLOADER: fondo azul claro, sin bordes internos, ni dobles líneas */
+    .stFileUploader, .stFileUploader * {
+        background: #d2eafb !important;
+        color: #14314f !important;
+        border-radius: 8px !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .stFileUploader [data-testid="stFileDropzone"],
+    .stFileUploader div[data-testid="stFileDropzone"] {
+        background: #d2eafb !important;
+        color: #20567a !important;
+        border-radius: 8px !important;
+        border: none !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    /* Quitar cualquier borde interno de los elementos hijos */
+    .stFileUploader * {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    /* Textos, iconos y botón */
+    .stFileUploader span, 
+    .stFileUploader p, 
+    .stFileUploader label, 
+    .stFileUploader div, 
+    .stFileUploader button, 
+    .stFileUploader svg {
+        color: #20567a !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+        fill: #1cd4d4 !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .stFileUploader button {
+        background-color: #1cd4d4 !important;
+        color: #fff !important;
+        border-radius: 6px !important;
+        border: none !important;
+        font-weight: bold !important;
+    }
+    .stFileUploader button:hover {
+        background-color: #24b7b7 !important;
+        color: #fff !important;
+    }
+    .stFileUploader svg {
+        color: #1cd4d4 !important;
+        fill: #1cd4d4 !important;
+    }
+    /* CAJA DE INFO DEL FOOTER SIDEBAR */
+    .stSidebar .stMarkdown div {
+        background-color: #e3f0fa !important;
+        color: #20567a !important;
+    }
+    textarea, .stTextArea>div>textarea {
+        background-color: #d2eafb !important;
+        color: #14314f !important;
+        border-radius: 8px !important;
+        border: 1.5px solid #1cd4d4 !important;
+        font-weight: 600 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="Tutor-IA", layout="centered")
 
-# Personalización del sidebar
-st.markdown("""
-    <style>
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-    }
-    </style>
-""", unsafe_allow_html=True)
+
 
 # Logo
 st.sidebar.image("tutor_ia_logo.png", width=120)
@@ -27,17 +174,17 @@ st.sidebar.title("Tutor-IA")
 menu_options = [
     ("Portada", "house"),
     ("Gestión de apuntes", "folder"),
-    ("  Subir apuntes", ""),    # Subopciones con dos espacios al principio
-    ("  Enriquecer apuntes", ""),
+    ("    Subir apuntes", ""),
+    ("    Enriquecer apuntes", ""),
     ("Evaluación", "check2-circle"),
-    ("  Evaluar desarrollo", ""),
+    ("    Evaluar desarrollo", ""),
     ("Consultar", "search"),
-    ("  Responder pregunta", ""),
-    ("  Explicar como un niño", ""),
+    ("    Responder pregunta", ""),
+    ("    Explicar como un niño", ""),
     ("Formación", "book"),
-    ("  Clase magistral", ""),
+    ("    Clase magistral", ""),
     ("Administración", "gear"),
-    ("  Borrar apuntes (admin)", ""),
+    ("    Borrar apuntes (admin)", ""),
 ]
 labels, icons = zip(*menu_options)
 
