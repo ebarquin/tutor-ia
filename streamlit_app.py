@@ -463,20 +463,36 @@ elif selected.strip() == "Explicar como un niño":
         else:
             st.warning("Por favor, completa ambos campos.")
 
-# --- Chat explicativo Tutor-IA ---
 elif selected.strip() == "💬 Chat explicativo":
-    # 1. Inicializa el historial de chat si no existe
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = []
-    # 2. Inicializa el contador para limpiar el input
-    if "chat_input_key" not in st.session_state:
-        st.session_state["chat_input_key"] = 0
-
+    # --- Título y descripción primero ---
     st.title("Chat explicativo Tutor-IA")
     st.markdown("Interactúa con el Tutor-IA para recibir explicaciones personalizadas sobre cualquier tema.")
     st.divider()
 
-    # --- Mostrar historial de mensajes (siempre arriba) ---
+    # --- Selectores de materia y tema justo después del título ---
+    materia_chat, tema_chat = seleccionar_materia_y_tema(
+        materias,
+        cargar_temas,
+        "chat_materia",
+        "chat_tema",
+        label_materia="Materia",
+        label_tema="Tema"
+    )
+    st.markdown(
+        "<span style='font-size:0.92em; color:#20567a'>El historial de chat se borra automáticamente al cambiar de materia o tema.</span>",
+        unsafe_allow_html=True
+    )
+
+    # --- Detectar cambio de materia/tema y resetear historial si corresponde ---
+    chat_materia_last = st.session_state.get("chat_materia_last")
+    chat_tema_last = st.session_state.get("chat_tema_last")
+    if (materia_chat != chat_materia_last) or (tema_chat != chat_tema_last):
+        st.session_state["chat_history"] = []
+        st.session_state["chat_input_key"] = 0
+    st.session_state["chat_materia_last"] = materia_chat
+    st.session_state["chat_tema_last"] = tema_chat
+
+    # --- Mostrar historial de mensajes (debajo de selectores) ---
     chat_history = st.session_state["chat_history"]
     if chat_history:
         for entry in chat_history:
