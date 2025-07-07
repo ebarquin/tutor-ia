@@ -7,6 +7,8 @@ import os
 st.cache_data.clear()
 
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
+import streamlit as st
+st.write(f"API_URL usada por la app: {API_URL}")
 
 st.set_page_config(page_title="Tutor-IA", layout="centered")
 
