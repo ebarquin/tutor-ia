@@ -294,7 +294,11 @@ elif selected.strip() == "Subir apuntes":
                     st.cache_data.clear()
                     st.experimental_rerun()
                 else:
-                    st.error("Error: " + response.text)
+                    try:
+                        detail = response.json().get("detail", "Se produjo un error inesperado.")
+                    except Exception:
+                        detail = "Se produjo un error inesperado."
+                    st.error(f"❌ {detail}")
         else:
             st.warning("Por favor, completa todos los campos y selecciona un archivo.")
 
@@ -328,7 +332,11 @@ elif selected.strip() == "Enriquecer apuntes":
                             with st.expander(chunk["titulo"]):
                                 st.write(chunk["resumen"])
                 else:
-                    st.error("Error: " + response.text)
+                    try:
+                        detail = response.json().get("detail", "Se produjo un error inesperado.")
+                    except Exception:
+                        detail = "Se produjo un error inesperado."
+                    st.error(f"❌ {detail}")
         else:
             st.warning("Selecciona materia y tema.")
 
@@ -354,7 +362,11 @@ elif selected.strip() == "Evaluar desarrollo":
                     st.markdown("### 📝 Evaluación")
                     st.success(response.json()["evaluacion"])
                 else:
-                    st.error("Error: " + response.text)
+                    try:
+                        detail = response.json().get("detail", "Se produjo un error inesperado.")
+                    except Exception:
+                        detail = "Se produjo un error inesperado."
+                    st.error(f"❌ {detail}")
         else:
             st.warning("Por favor, completa todos los campos antes de enviar.")
 
@@ -375,7 +387,11 @@ elif selected.strip() == "Responder pregunta":
                 if response.status_code == 200:
                     st.success(response.json()["respuesta"])
                 else:
-                    st.error("Error: " + response.text)
+                    try:
+                        detail = response.json().get("detail", "Se produjo un error inesperado.")
+                    except Exception:
+                        detail = "Se produjo un error inesperado."
+                    st.error(f"❌ {detail}")
         else:
             st.warning("Por favor, completa todos los campos.")
 
@@ -395,7 +411,11 @@ elif selected.strip() == "Explicar como un niño":
                 if response.status_code == 200:
                     st.success(response.json()["explicacion"])
                 else:
-                    st.error("Error: " + response.text)
+                    try:
+                        detail = response.json().get("detail", "Se produjo un error inesperado.")
+                    except Exception:
+                        detail = "Se produjo un error inesperado."
+                    st.error(f"❌ {detail}")
         else:
             st.warning("Por favor, completa ambos campos.")
 
@@ -436,7 +456,11 @@ elif selected.strip() == "Clase magistral":
                             st.cache_data.clear()
                             st.experimental_rerun()
                         else:
-                            st.error("❌ Error al generar la clase magistral: " + response.text)
+                            try:
+                                detail = response.json().get("detail", "Se produjo un error inesperado.")
+                            except Exception:
+                                detail = "Se produjo un error inesperado."
+                            st.error(f"❌ {detail}")
         except FileNotFoundError:
             st.info("ℹ️ No existe ningún apunte para este tema. Por favor, sube apuntes antes de generar la clase magistral.")
             generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn_2")
@@ -451,7 +475,11 @@ elif selected.strip() == "Clase magistral":
                         st.cache_data.clear()
                         st.experimental_rerun()
                     else:
-                        st.error("❌ Error al generar la clase magistral: " + response.text)
+                        try:
+                            detail = response.json().get("detail", "Se produjo un error inesperado.")
+                        except Exception:
+                            detail = "Se produjo un error inesperado."
+                        st.error(f"❌ {detail}")
         except Exception as e:
             st.error(f"Error leyendo el JSON: {e}")
 
@@ -465,7 +493,11 @@ elif selected.strip() == "Borrar apuntes (admin)":
                 st.cache_data.clear()
                 st.experimental_rerun()
             else:
-                st.error("❌ Error al borrar los apuntes: " + response.text)
+                try:
+                    detail = response.json().get("detail", "Se produjo un error inesperado.")
+                except Exception:
+                    detail = "Se produjo un error inesperado."
+                st.error(f"❌ {detail}")
 
 # --- FOOTER ---
 st.sidebar.markdown("""
