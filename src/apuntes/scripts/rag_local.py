@@ -3,7 +3,6 @@
 import torch
 import os
 from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from openai import OpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -25,22 +24,6 @@ client = OpenAI(
 # Configuración
 BASE_DIR = Path(__file__).resolve().parent.parent
 FAISS_DIR = BASE_DIR / "rag" / "vectorstores"
-MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
-
-# Variables de modelo local, sin carga inicial
-_model = None
-_tokenizer = None
-
-def get_model():
-    """Carga el modelo TinyLlama solo si se necesita."""
-    global _model, _tokenizer
-    if _model is None or _tokenizer is None:
-        print("📦 Cargando modelo TinyLlama en memoria...")
-        _tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=token)
-        _model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, token=token)
-        _model.to(DEVICE)
-    return _model, _tokenizer
 
 
 def cargar_vectorstore(materia, tema):
