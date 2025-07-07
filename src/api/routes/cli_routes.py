@@ -5,6 +5,7 @@ from typing import List
 from src.apuntes.scripts.agents.agent_tools import postprocesar_clase_magistral_groq
 import os
 from src.config import GROQ_API_KEY
+from src.api.schemas import ChatExplicaSimpleRequest, ChatExplicaSimpleResponse, MensajeChat
 
 from src.services.tutor import (
     responder_pregunta_servicio,
@@ -186,3 +187,19 @@ def borrar_apuntes_todos():
     """
     limpiar_apuntes()
     return {"mensaje": "¡Todos los datos de apuntes, chunks y vectorstores han sido eliminados!"}
+
+@router.post("/chat_explica_simple", response_model=ChatExplicaSimpleResponse)
+def chat_explica_simple(req: ChatExplicaSimpleRequest):
+    # Aquí iría tu llamada real al LLM
+    # De momento, simulamos una respuesta sencilla
+
+    user_msg = req.historial[-1].content if req.historial else ""
+    respuesta = f"(Respuesta simulada para el tema '{req.tema}', nivel '{req.nivel}'): {user_msg[::-1]}"
+
+    # Añade la respuesta al historial
+    historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+
+    return ChatExplicaSimpleResponse(
+        respuesta=respuesta,
+        historial=historial_actualizado
+    )

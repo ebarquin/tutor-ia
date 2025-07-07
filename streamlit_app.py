@@ -497,9 +497,42 @@ elif selected.strip() == "💬 Chat explicativo":
     if chat_history:
         for entry in chat_history:
             if entry["role"] == "user":
-                st.markdown(f'<div style="background:#d2eafb; border-radius:8px; padding:8px; margin-bottom:4px;"><b>Usuario:</b> {entry["content"]}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div style="
+                        background:#d2eafb;
+                        border-radius: 12px 12px 0px 12px;
+                        padding:10px 14px;
+                        margin-bottom:4px;
+                        max-width: 65%;
+                        text-align: left;
+                        margin-left: auto;
+                        box-shadow: 1px 1px 8px #1cd4d414;
+                        border-right: 3px solid #1cd4d4;
+                    ">
+                        <b>Tú:</b> {entry["content"]}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
             else:
-                st.markdown(f'<div style="background:#e3f0fa; border-radius:8px; padding:8px; margin-bottom:8px;"><b>Tutor:</b> {entry["content"]}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div style="
+                        background:#e3f0fa;
+                        border-radius: 12px 12px 12px 0px;
+                        padding:10px 14px;
+                        margin-bottom:8px;
+                        max-width: 65%;
+                        text-align: left;
+                        margin-right: auto;
+                        box-shadow: 1px 1px 8px #1cd4d414;
+                    ">
+                        <b>Tutor:</b> {entry["content"]}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
     else:
         st.info("El chat está vacío. ¡Haz tu primera pregunta!")
 
@@ -589,7 +622,7 @@ elif selected.strip() == "💬 Chat explicativo":
             """
             st.markdown(js, unsafe_allow_html=True)
             # Forzar rerun para actualizar input
-            st.experimental_rerun()
+            st.rerun()
         # Espacio abajo
         st.markdown("<div style='height: 5px'></div>", unsafe_allow_html=True)
 
@@ -602,16 +635,31 @@ elif selected.strip() == "💬 Chat explicativo":
     if limpiar:
         st.session_state["chat_history"] = []
         st.session_state["chat_input_key"] = 0
-        st.experimental_rerun()
+        st.rerun()
 
     if enviar and user_input.strip():
         # Añadir mensaje del usuario al historial
         st.session_state["chat_history"].append({"role": "user", "content": user_input.strip()})
-        # --- Aquí es donde se haría la llamada real al endpoint del chat explicativo ---
-        # Por ahora, añadimos respuesta simulada:
-        st.session_state["chat_history"].append({"role": "tutor", "content": "Respuesta generada por IA (simulada)."})
-        st.session_state["chat_input_key"] += 1
-        st.experimental_rerun()
+
+        # --- Llamada real al endpoint de la API ---
+        payload = {
+            "materia": materia_chat,
+            "tema": tema_chat,
+            "nivel": "12_años",  # puedes adaptar esto con un selector si quieres más adelante
+            "historial": st.session_state["chat_history"]
+        }
+        try:
+            response = requests.post(f"{API_URL}/chat_explica_simple", json=payload, timeout=60)
+            if response.status_code == 200:
+                data = response.json()
+                st.session_state["chat_history"] = data.get("historial", st.session_state["chat_history"])
+                st.session_state["chat_input_key"] += 1
+                st.rerun()
+            else:
+                detail = response.json().get("detail", "Error desconocido al contactar con el backend.")
+                st.error(f"❌ {detail}")
+        except Exception as e:
+            st.error(f"❌ Error de conexión con la API: {e}")
 
 elif selected.strip() == "Clase magistral":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
