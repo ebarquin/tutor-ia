@@ -504,9 +504,96 @@ elif selected.strip() == "💬 Chat explicativo":
         st.info("El chat está vacío. ¡Haz tu primera pregunta!")
 
     # --- Campo de texto para nueva pregunta (debajo del historial) ---
-    user_input = st.text_input("Escribe tu pregunta", key=f"chat_input_{st.session_state['chat_input_key']}")
+    user_input_key = f"chat_input_{st.session_state['chat_input_key']}"
+    user_input = st.text_input("Escribe tu pregunta", key=user_input_key)
 
-    # --- Botones "Enviar" y "Limpiar chat" juntos, debajo del input ---
+    # --- SUGERENCIAS debajo del campo de texto, en horizontal, visual tipo globo pill ---
+    if materia_chat and tema_chat:
+        sugerencias = [
+            "Explícame este tema como si tuviera 12 años.",
+            "Dame un ejemplo sencillo sobre este tema.",
+            "Cuéntame una historia sobre esto."
+        ]
+        # Espacio arriba
+        st.markdown("<div style='height: 10px'></div>", unsafe_allow_html=True)
+        # Nuevo CSS para globo pill con punta
+        st.markdown("""
+        <style>
+        .sug-pills-container {
+            display: flex;
+            gap: 16px;
+            margin: 16px 0 24px 0;
+            justify-content: center;
+        }
+        .sug-pill-bubble {
+            position: relative;
+            background: #d2eafb;
+            color: #14314f;
+            padding: 8px 18px 8px 14px;
+            border-radius: 32px 32px 32px 0px;
+            font-size: 0.95em;
+            font-weight: 600;
+            box-shadow: 0 2px 12px #0002;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            display: inline-block;
+            transition: background 0.16s, box-shadow 0.16s;
+            text-align: left;
+            user-select: none;
+        }
+        .sug-pill-bubble:hover {
+            background: #b8d6e8;
+            box-shadow: 0 4px 18px #1cd4d444;
+        }
+        .sug-pill-bubble::after {
+            content: "";
+            position: absolute;
+            left: 20px;
+            bottom: -16px;
+            width: 0;
+            height: 0;
+            border-top: 16px solid #d2eafb;
+            border-left: 14px solid transparent;
+        }
+        .sug-pill-bubble:active {
+            background: #98c8e6;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        import urllib.parse
+        query_params = st.query_params
+        sug_clicked = query_params.get("sug_pill", [None])[0]
+        # Render pills como enlaces con globo pill
+        pills_html = "<div class='sug-pills-container'>"
+        for i, sugerencia in enumerate(sugerencias):
+            encoded = urllib.parse.quote(sugerencia)
+            pills_html += (
+                f"<a href='?sug_pill={encoded}' class='sug-pill-bubble' "
+                f"onclick=\"window.location.search='?sug_pill={encoded}';return false;\">{sugerencia}</a>"
+            )
+        pills_html += "</div>"
+        st.markdown(pills_html, unsafe_allow_html=True)
+        # Si pill clicada, copiar al input y limpiar el query param
+        if sug_clicked:
+            st.session_state[user_input_key] = sug_clicked
+            # Limpiar query param (redirigir sin él)
+            js = """
+            <script>
+            if (window.location.search.includes('sug_pill=')) {
+                const url = new URL(window.location);
+                url.searchParams.delete('sug_pill');
+                window.history.replaceState(null, '', url);
+            }
+            </script>
+            """
+            st.markdown(js, unsafe_allow_html=True)
+            # Forzar rerun para actualizar input
+            st.experimental_rerun()
+        # Espacio abajo
+        st.markdown("<div style='height: 5px'></div>", unsafe_allow_html=True)
+
+    # --- Botones "Enviar" y "Limpiar chat" juntos, debajo del input y sugerencias ---
     col1, col2 = st.columns([1, 1])
     enviar = col1.button("Enviar")
     limpiar = col2.button("Limpiar chat")
