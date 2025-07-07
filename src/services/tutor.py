@@ -21,6 +21,19 @@ from langchain_openai import ChatOpenAI
 import os
 import re
 
+"""
+tutor.py - Lógica de negocio centralizada para Tutor-IA
+
+Este módulo define las funciones de alto nivel para la gestión de apuntes, respuestas,
+explicaciones y evaluaciones en Tutor-IA. Toda la lógica de negocio se centraliza aquí, 
+de forma que tanto la API (FastAPI) como la CLI (línea de comandos) llaman a estas funciones 
+de servicio para garantizar consistencia y evitar duplicidades. 
+
+Si necesitas modificar cómo se responde a una pregunta, se procesa un apunte, o se evalúa 
+un desarrollo, hazlo en este archivo: el cambio se aplicará automáticamente a todos los 
+puntos de entrada (web y CLI).
+"""
+
 # --- Setup explícito del cliente de OpenAI ---
 import openai
 
@@ -28,6 +41,17 @@ import openai
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY no está configurada en el entorno.")
+
+# --- Configuración de modelo para evaluación ---
+# Puedes cambiar a "gpt-4o" si tienes acceso, o cualquier modelo GPT oficial de OpenAI habilitado para tu cuenta.
+MODELO_EVALUACION = "gpt-3.5-turbo-1106"
+
+# --- Función auxiliar para contar tokens ---
+def contar_tokens(texto):
+    if tiktoken is None:
+        return len(texto) // 4  # Aproximación muy grosera
+    enc = tiktoken.get_encoding("cl100k_base")
+    return len(enc.encode(texto))
 
 # --- Función para obtener cliente adecuado según modelo ---
 def get_chat_client(model_name: str):
@@ -40,16 +64,48 @@ def get_chat_client(model_name: str):
         # Pero para evaluación, solo se permite OpenAI
         raise ValueError(f"Modelo {model_name} no soportado para evaluación, debe ser gpt-*")
 
-# --- Configuración de modelo para evaluación ---
-# Puedes cambiar a "gpt-4o" si tienes acceso, o cualquier modelo GPT oficial de OpenAI habilitado para tu cuenta.
-MODELO_EVALUACION = "gpt-3.5-turbo-1106"
+def normalizar_concepto(concepto: str) -> str:
+    # Normaliza quitando puntuación, números y espacios, y pasando a minúsculas para evitar duplicados
+    return re.sub(r'[\s\.\,\-\_\(\)\[\]\{\}0-9]+', '', concepto.lower())
 
-# --- Función auxiliar para contar tokens ---
-def contar_tokens(texto):
-    if tiktoken is None:
-        return len(texto) // 4  # Aproximación muy grosera
-    enc = tiktoken.get_encoding("cl100k_base")
-    return len(enc.encode(texto))
+def doble_validacion_conceptos(conceptos_nocubiertos, desarrollo):
+    """
+    Doble validación de conceptos no cubiertos usando OpenAI (nunca Groq).
+    """
+    conceptos_validados = {}
+    chat_client = get_chat_client(MODELO_EVALUACION)
+    for concepto in conceptos_nocubiertos:
+        mini_prompt = f"""
+¿El siguiente desarrollo trata (aunque sea de forma indirecta) el concepto '{concepto}'? 
+Responde SÍ si aparece, aunque sea con otras palabras, y explica brevemente dónde. Si no, responde NO.
+Desarrollo:
+\"\"\"
+{desarrollo}
+\"\"\"
+"""
+        response = chat_client.chat.completions.create(
+            model=MODELO_EVALUACION,
+            messages=[{"role": "user", "content": mini_prompt}]
+        )
+        answer = response.choices[0].message.content.strip().lower()
+        if answer.startswith("sí") or answer.startswith("si"):
+            conceptos_validados[concepto] = "✔️"
+        else:
+            conceptos_validados[concepto] = "❌"
+    return conceptos_validados
+
+def limpiar_texto_chunk(chunk: str) -> str:
+    # Elimina numeración típica al principio de línea (1., 1.1, 1), guiones, etc.
+    chunk = re.sub(r'^\s*[\d\-\.]+(\)|\.)?\s+', '', chunk, flags=re.MULTILINE)
+    # Elimina títulos en mayúsculas (habituales en apuntes, p.ej. "INTRODUCCIÓN", "RESUMEN")
+    chunk = re.sub(r'^[A-ZÁÉÍÓÚÜÑ\s]{4,}$', '', chunk, flags=re.MULTILINE)
+    # Sustituye saltos de línea múltiples por uno solo
+    chunk = re.sub(r'\n+', '\n', chunk)
+    # Quita espacios al principio y final
+    chunk = chunk.strip()
+    # Elimina líneas vacías
+    chunk = '\n'.join([line for line in chunk.splitlines() if line.strip()])
+    return chunk
 
 # ---------- CORE DE FUNCIONES ----------
 
@@ -143,36 +199,6 @@ def procesar_apunte_completo(materia: str, tema: str, archivo: str) -> str:
 # y luego utiliza estos resúmenes para evaluar globalmente el desarrollo del estudiante.
 # Esto permite manejar grandes volúmenes de texto sin exceder límites de tokens,
 # mejora la coherencia y precisión de la evaluación, y evita perder contexto importante.
-
-def normalizar_concepto(concepto: str) -> str:
-    # Normaliza quitando puntuación, números y espacios, y pasando a minúsculas para evitar duplicados
-    return re.sub(r'[\s\.\,\-\_\(\)\[\]\{\}0-9]+', '', concepto.lower())
-
-def doble_validacion_conceptos(conceptos_nocubiertos, desarrollo):
-    """
-    Doble validación de conceptos no cubiertos usando OpenAI (nunca Groq).
-    """
-    conceptos_validados = {}
-    chat_client = get_chat_client(MODELO_EVALUACION)
-    for concepto in conceptos_nocubiertos:
-        mini_prompt = f"""
-¿El siguiente desarrollo trata (aunque sea de forma indirecta) el concepto '{concepto}'? 
-Responde SÍ si aparece, aunque sea con otras palabras, y explica brevemente dónde. Si no, responde NO.
-Desarrollo:
-\"\"\"
-{desarrollo}
-\"\"\"
-"""
-        response = chat_client.chat.completions.create(
-            model=MODELO_EVALUACION,
-            messages=[{"role": "user", "content": mini_prompt}]
-        )
-        answer = response.choices[0].message.content.strip().lower()
-        if answer.startswith("sí") or answer.startswith("si"):
-            conceptos_validados[concepto] = "✔️"
-        else:
-            conceptos_validados[concepto] = "❌"
-    return conceptos_validados
 
 def evaluar_desarrollo_servicio(materia: str, tema: str, titulo_tema: str, desarrollo: str) -> str:
     """
@@ -341,16 +367,3 @@ def enriquecer_apuntes_servicio(materia, tema):
         "ya_analizado": False,
         **resultado
     }
-
-def limpiar_texto_chunk(chunk: str) -> str:
-    # Elimina numeración típica al principio de línea (1., 1.1, 1), guiones, etc.
-    chunk = re.sub(r'^\s*[\d\-\.]+(\)|\.)?\s+', '', chunk, flags=re.MULTILINE)
-    # Elimina títulos en mayúsculas (habituales en apuntes, p.ej. "INTRODUCCIÓN", "RESUMEN")
-    chunk = re.sub(r'^[A-ZÁÉÍÓÚÜÑ\s]{4,}$', '', chunk, flags=re.MULTILINE)
-    # Sustituye saltos de línea múltiples por uno solo
-    chunk = re.sub(r'\n+', '\n', chunk)
-    # Quita espacios al principio y final
-    chunk = chunk.strip()
-    # Elimina líneas vacías
-    chunk = '\n'.join([line for line in chunk.splitlines() if line.strip()])
-    return chunk
