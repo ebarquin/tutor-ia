@@ -132,8 +132,28 @@ from src.apuntes.scripts.agents.limpiar_apuntes import limpiar_apuntes
 
 @router.post("/enriquecer_apuntes")
 def enriquecer_apuntes(materia: str, tema: str):
-    resultado = enriquecer_apuntes_servicio(materia, tema)
-    return resultado
+    try:
+        print(f"[API] Enriqueciendo apuntes para materia='{materia}', tema='{tema}'")
+        resultado = enriquecer_apuntes_servicio(materia, tema)
+
+        # --- VALIDACIÓN DEFENSIVA PARA SIEMPRE DEVOLVER LA ESTRUCTURA ESPERADA ---
+        if not isinstance(resultado, dict):
+            resultado = {"mensaje": {"chunks_creados": 0, "subtemas_agregados": [], "detalle": []}, "ya_analizado": False}
+        elif "mensaje" not in resultado or not isinstance(resultado["mensaje"], dict):
+            resultado["mensaje"] = {"chunks_creados": 0, "subtemas_agregados": [], "detalle": []}
+        if "ya_analizado" not in resultado:
+            resultado["ya_analizado"] = False
+        # -------------------------------------------------------------------------
+
+        print(f"[API] Resultado enriquecimiento: {resultado.get('mensaje', 'OK')}")
+        return resultado
+
+    except HTTPException as e:
+        print(f"[API ERROR] HTTPException enriqueciendo apuntes: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[API ERROR] Error inesperado enriqueciendo apuntes: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error inesperado al enriquecer los apuntes.")
 
 
 from fastapi import HTTPException

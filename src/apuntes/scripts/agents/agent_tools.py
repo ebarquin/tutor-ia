@@ -56,7 +56,11 @@ def obtener_titulos_vectorstore(materia: str, tema: str, max_chunks: int = 12):
 def construir_texto_clase_base(titulos: list):
     return "\n".join(f"- {t}" for t in titulos if t)
 
-def detectar_subtemas_pobres(materia, tema, min_longitud=80):
+def detectar_subtemas_pobres(materia, tema, min_longitud=150, max_subtemas=5):
+    """
+    Detecta subtemas con desarrollo pobre (por debajo de min_longitud palabras).
+    Devuelve como máximo max_subtemas resultados (límite por MVP).
+    """
     store = cargar_vectorstore(materia, tema)
     if not store:
         return []
@@ -67,7 +71,7 @@ def detectar_subtemas_pobres(materia, tema, min_longitud=80):
         titulo = doc.metadata.get("punto") or doc.metadata.get("titulo") or ""
         if titulo and len(texto.split()) < min_longitud:
             subtemas_pobres.append({"titulo": titulo, "longitud": len(texto.split())})
-    return subtemas_pobres
+    return subtemas_pobres[:max_subtemas]
 
 def crear_prompt_profesor(materia: str, tema: str, texto_clase_base: str):
     return (
@@ -290,17 +294,41 @@ def generar_desarrollo_orquestado(titulo, contexto_base):
     return desarrollo_3
 
 def generar_clase_magistral_avanzada(materia: str, tema: str, max_subtemas: int = 10):
-    """
-    Orquesta la generación de la clase magistral desarrollando todos los subtemas/títulos principales.
-    """
     titulos = obtener_titulos_vectorstore(materia, tema, max_chunks=max_subtemas)
     print(f"Generando desarrollo para {len(titulos)} subtemas...")
     exposiciones = []
     for i, titulo in enumerate(titulos, 1):
         print(f"\n--- [{i}/{len(titulos)}] Desarrollando: {titulo} ---")
-        # Puedes obtener el contexto base de cada chunk o un contexto general si lo prefieres
-        contexto_base = ""  # O usa el chunk asociado si lo tienes
+        contexto_base = ""
         desarrollo = generar_desarrollo_orquestado(titulo, contexto_base)
+        print(f"✔️ Subtema '{titulo}' desarrollado con {len(desarrollo.split())} palabras.")
         exposiciones.append(f"### {titulo}\n\n{desarrollo}")
     clase_magistral = "\n\n".join(exposiciones)
     return clase_magistral
+
+def enriquecer_apuntes_tool(materia: str, tema: str, modelo_llm=llm_groq):
+    print(f"[ENRIQUECER] >>> Inicio enriquecer_apuntes_tool para {materia}/{tema}")
+    # Se eleva el umbral de 'min_longitud' para que solo los subtemas realmente breves sean enriquecidos.
+    # Límite de subtemas por MVP.
+    subtemas_pobres = detectar_subtemas_pobres(materia, tema, min_longitud=150, max_subtemas=5)
+    print(f"[ENRIQUECER] Subtemas pobres detectados: {subtemas_pobres}")
+
+    if not subtemas_pobres:
+        print("[ENRIQUECER] No hay subtemas pobres.")
+        return {"mensaje": "No se detectaron subtemas pobres.", "nuevos_desarrollos": []}
+
+    nuevos_desarrollos = []
+    for i, subtema in enumerate(subtemas_pobres, 1):
+        titulo = subtema["titulo"]
+        print(f"[ENRIQUECER] ({i}/{len(subtemas_pobres)}) Generando desarrollo para subtema: {titulo}")
+        contexto = obtener_todo_contexto_vectorstore(materia, tema)
+        print(f"[ENRIQUECER] Contexto obtenido para subtema: {titulo}")
+        desarrollo = generar_desarrollo_orquestado(titulo, contexto)
+        print(f"[ENRIQUECER] Desarrollo generado para: {titulo}")
+        nuevos_desarrollos.append({
+            "titulo": titulo,
+            "desarrollo": desarrollo
+        })
+
+    print(f"[ENRIQUECER] Total nuevos desarrollos: {len(nuevos_desarrollos)}")
+    return {"mensaje": f"Se generaron desarrollos para {len(nuevos_desarrollos)} subtemas.", "nuevos_desarrollos": nuevos_desarrollos}
