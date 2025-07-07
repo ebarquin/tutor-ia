@@ -84,7 +84,8 @@ def evaluar_desarrollo(payload: DesarrolloInput):
         )
         return {"evaluacion": resultado}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        print(f"[ERROR evaluar_desarrollo] {e}")
+        raise HTTPException(status_code=400, detail="El desarrollo no es válido o está incompleto.")
 
 
 @router.get("/materias", response_model=List[str])
@@ -154,8 +155,8 @@ def generar_clase_magistral(materia: str, tema: str):
         insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio)
         return {"mensaje": "Clase magistral generada correctamente."}
     except Exception as e:
-        print(f"Error al generar clase magistral: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR generar_clase_magistral] {e}")
+        raise HTTPException(status_code=500, detail="Error al generar la clase magistral. Por favor, verifica tus apuntes o inténtalo más tarde.")
 
 # Endpoint para borrar todos los datos de apuntes, chunks y vectorstores
 @router.post("/borrar_apuntes_todos")
