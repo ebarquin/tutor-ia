@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 import shutil
+from src.apuntes.scripts.agents.agent_tools import enriquecer_apuntes_tool
 from src.config import OPENAI_API_KEY
 
 
@@ -342,17 +343,24 @@ Justificación y consejos: Faltan algunos conceptos como 'bombardeo atómico de 
 
 # --- BLOQUE QUE USA GROQ para generación general (resúmenes, expansión, etc.) ---
 def enriquecer_apuntes_servicio(materia, tema):
+    print(f"[SERVICIO] Cargando vectorstore para {materia}/{tema}...")
     store = cargar_vectorstore(materia, tema)
+
+    print(f"[SERVICIO] Buscando documentos similares...")
     docs = store.similarity_search("", k=1000)
     chunks_expansion = [doc for doc in docs if doc.metadata.get("fuente") == "expansion_llm"]
+
+    print(f"[SERVICIO] Chunks de expansión detectados: {len(chunks_expansion)}")
+
     llm = ChatOpenAI(
-        api_key= GROQ_API_KEY,
+        api_key=GROQ_API_KEY,
         base_url="https://api.groq.com/openai/v1",
         model="llama3-70b-8192",
         temperature=0.2
     )
 
     if chunks_expansion:
+        print("[SERVICIO] Ya existen chunks de expansión. No se generarán nuevos.")
         return {
             "ya_analizado": True,
             "mensaje": f"Ya se han generado {len(chunks_expansion)} chunks de expansión por LLM para este tema.",
@@ -364,8 +372,11 @@ def enriquecer_apuntes_servicio(materia, tema):
                 } for doc in chunks_expansion
             ]
         }
-    
+
+    print("[SERVICIO] Generando nuevos desarrollos con enriquecer_apuntes_tool...")
     resultado = enriquecer_apuntes_tool(materia, tema, llm)
+    print("[SERVICIO] Generación completada.")
+
     return {
         "ya_analizado": False,
         **resultado

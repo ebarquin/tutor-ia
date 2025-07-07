@@ -167,6 +167,14 @@ st.markdown("""
         border: 1.5px solid #1cd4d4 !important;
         font-weight: 600 !important;
     }
+    /* Forzar color oscuro en errores de excepción de Streamlit */
+    .stException, .stException *, .stException pre, .stException code, .stException span, .stException div {
+    color: #444444 !important;          /* Gris oscuro suave */
+    background-color: #ffd9d9 !important;
+    font-weight: bold !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+}
     </style>
 """, unsafe_allow_html=True)
 
@@ -278,11 +286,11 @@ elif selected.strip() == "Subir apuntes":
     tema_subir = st.text_input("Tema", key="tema_subir")
     archivo = st.file_uploader("Selecciona un archivo PDF", type=["pdf"])
 
-    if st.button("Procesar apunte"):
+    if st.button("Procesar documento"):
         if materia_subir and tema_subir and archivo:
             files = {"archivo": (archivo.name, archivo, "application/pdf")}
             data = {"materia": materia_subir, "tema": tema_subir}
-            with st.spinner("Procesando apunte..."):
+            with st.spinner("Procesando documento..."):
                 response = requests.post(
                     f"{API_URL}/procesar_apunte",
                     data=data,
@@ -292,7 +300,7 @@ elif selected.strip() == "Subir apuntes":
                     st.success(response.json()["mensaje"])
                     time.sleep(1.5)
                     st.cache_data.clear()
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     try:
                         detail = response.json().get("detail", "Se produjo un error inesperado.")
@@ -303,42 +311,61 @@ elif selected.strip() == "Subir apuntes":
             st.warning("Por favor, completa todos los campos y selecciona un archivo.")
 
 elif selected.strip() == "Enriquecer apuntes":
+    import traceback
     st.header("Enriquecer apuntes con IA")
     materia_enriq, tema_enriq = seleccionar_materia_y_tema(materias, cargar_temas, "materia_enriq", "tema_enriq")
     if st.button("Enriquecer apuntes"):
-        if materia_enriq and tema_enriq:
-            with st.spinner("Enriqueciendo tus apuntes... Este proceso puede tardar varios segundos. No cierres la ventana."):
-                response = requests.post(
-                    f"{API_URL}/enriquecer_apuntes",
-                    params={"materia": materia_enriq, "tema": tema_enriq}
-                )
-                if response.status_code == 200:
-                    data = response.json().get("mensaje", {})
-                    st.balloons()
-                    st.success("🎉 ¡Apuntes enriquecidos correctamente! 🎉")
-                    chunks_creados = data.get("chunks_creados", "?")
-                    st.info(f"Número de nuevos chunks añadidos: **{chunks_creados}**. ¡Sigue así, tu aprendizaje mejora cada día!")
-                    subtemas = data.get("subtemas_agregados", [])
-                    detalle = data.get("detalle", [])
-                    
-                    if subtemas:
-                        st.markdown("**Subtemas añadidos:**")
-                        for sub in subtemas:
-                            st.markdown(f"- ✅ {sub}")
-
-                    if detalle:
-                        st.markdown("---\n**Detalles de los nuevos chunks:**")
-                        for chunk in detalle:
-                            with st.expander(chunk["titulo"]):
-                                st.write(chunk["resumen"])
-                else:
-                    try:
-                        detail = response.json().get("detail", "Se produjo un error inesperado.")
-                    except Exception:
-                        detail = "Se produjo un error inesperado."
-                    st.error(f"❌ {detail}")
-        else:
-            st.warning("Selecciona materia y tema.")
+        try:
+            if materia_enriq and tema_enriq:
+                with st.spinner("Enriqueciendo tus apuntes... Este proceso puede tardar varios segundos. No cierres la ventana."):
+                    response = requests.post(
+                        f"{API_URL}/enriquecer_apuntes",
+                        params={"materia": materia_enriq, "tema": tema_enriq}
+                    )
+                    if response.status_code == 404:
+                        try:
+                            detail = response.json().get("detail", "No se encontraron apuntes para enriquecer.")
+                        except Exception:
+                            detail = "No se encontraron apuntes para enriquecer."
+                        st.warning(f"⚠️ {detail}")
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("ya_analizado"):
+                            st.info("📌 Este tema ya fue enriquecido anteriormente. No se ha realizado un nuevo análisis.")
+                        else:
+                            mensaje = data.get("mensaje", {})
+                            st.balloons()
+                            st.success("🎉 ¡Apuntes enriquecidos correctamente! 🎉")
+                            # Control robusto de tipos para mensaje
+                            if isinstance(mensaje, dict):
+                                chunks_creados = mensaje.get("chunks_creados", "?")
+                                subtemas = mensaje.get("subtemas_agregados", [])
+                                detalle = mensaje.get("detalle", [])
+                            else:
+                                chunks_creados = "?"
+                                subtemas = []
+                                detalle = []
+                            st.info(f"Número de nuevos chunks añadidos: **{chunks_creados}**. ¡Sigue así, tu aprendizaje mejora cada día!")
+                            if subtemas:
+                                st.markdown("**Subtemas añadidos:**")
+                                for sub in subtemas:
+                                    st.markdown(f"- ✅ {sub}")
+                            if detalle:
+                                st.markdown("---\n**Detalles de los nuevos chunks:**")
+                                for chunk in detalle:
+                                    with st.expander(chunk.get("titulo", "Chunk sin título")):
+                                        st.write(chunk.get("resumen", ""))
+                    elif response.status_code != 404:
+                        try:
+                            detail = response.json().get("detail", "Se produjo un error inesperado.")
+                        except Exception:
+                            detail = "Se produjo un error inesperado."
+                        st.error(f"❌ Error {response.status_code}: {detail}")
+            else:
+                st.warning("Selecciona materia y tema.")
+        except Exception:
+            st.error("❌ Ha ocurrido un error inesperado durante el enriquecimiento:")
+            st.code(traceback.format_exc())
 
 elif selected.strip() == "Evaluar desarrollo":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
@@ -454,7 +481,7 @@ elif selected.strip() == "Clase magistral":
                         if response.status_code == 200:
                             st.success("✅ Clase magistral generada. Recarga para visualizarla.")
                             st.cache_data.clear()
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             try:
                                 detail = response.json().get("detail", "Se produjo un error inesperado.")
@@ -473,7 +500,7 @@ elif selected.strip() == "Clase magistral":
                     if response.status_code == 200:
                         st.success("✅ Clase magistral generada. Recarga para visualizarla.")
                         st.cache_data.clear()
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         try:
                             detail = response.json().get("detail", "Se produjo un error inesperado.")
@@ -491,7 +518,7 @@ elif selected.strip() == "Borrar apuntes (admin)":
             if response.status_code == 200:
                 st.success("✅ Todos los apuntes borrados correctamente.")
                 st.cache_data.clear()
-                st.experimental_rerun()
+                st.rerun()
             else:
                 try:
                     detail = response.json().get("detail", "Se produjo un error inesperado.")
