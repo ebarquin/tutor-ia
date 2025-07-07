@@ -333,6 +333,8 @@ elif selected.strip() == "Enriquecer apuntes":
             st.warning("Selecciona materia y tema.")
 
 elif selected.strip() == "Evaluar desarrollo":
+    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
+        st.session_state.pop(key, None)
     st.header("Evaluar un desarrollo completo de tema")
     materia_eval, tema_eval = seleccionar_materia_y_tema(materias, cargar_temas, "materia_eval", "tema_eval")
     titulo_eval = st.text_input("Título del desarrollo", key="titulo_eval")
@@ -357,6 +359,8 @@ elif selected.strip() == "Evaluar desarrollo":
             st.warning("Por favor, completa todos los campos antes de enviar.")
 
 elif selected.strip() == "Responder pregunta":
+    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
+        st.session_state.pop(key, None)
     st.header("Haz una pregunta sobre tus apuntes")
     materia, tema = seleccionar_materia_y_tema(materias, cargar_temas, "materia_pregunta", "tema_pregunta")
     pregunta = st.text_area("Pregunta")
@@ -376,6 +380,8 @@ elif selected.strip() == "Responder pregunta":
             st.warning("Por favor, completa todos los campos.")
 
 elif selected.strip() == "Explicar como un niño":
+    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
+        st.session_state.pop(key, None)
     st.header("Explica un tema como si tuvieras 12 años")
     materia_nino, tema_nino = seleccionar_materia_y_tema(materias, cargar_temas, "materia_nino", "tema_nino")
 
@@ -394,6 +400,8 @@ elif selected.strip() == "Explicar como un niño":
             st.warning("Por favor, completa ambos campos.")
 
 elif selected.strip() == "Clase magistral":
+    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
+        st.session_state.pop(key, None)
     st.header("📚 Clase magistral generada por IA")
     materia_cm, tema_cm = seleccionar_materia_y_tema(materias, cargar_temas, "materia_cm", "tema_cm")
 
