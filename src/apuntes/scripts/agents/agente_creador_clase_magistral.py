@@ -5,6 +5,8 @@ import sys
 import json
 from datetime import datetime
 import os
+from src.config import GROQ_API_KEY
+
 
 def insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio):
     tema_slug = tema.lower().replace(" ", "_")
@@ -86,7 +88,7 @@ if __name__ == "__main__":
     texto_clase = "\n\n".join([s["desarrollo"] for s in subtemas])
 
     # --- POSTPROCESADO CON GROQ ---
-    groq_api_key = os.getenv("GROQ_API_KEY")
+    groq_api_key = GROQ_API_KEY
     texto_clase_sin_titulos = limpiar_titulos(texto_clase)
     texto_clase_limpio = postprocesar_clase_magistral_groq(texto_clase_sin_titulos, groq_api_key)
 

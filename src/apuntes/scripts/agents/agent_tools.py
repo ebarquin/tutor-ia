@@ -10,6 +10,7 @@ import uuid
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 import openai
+from src.config import ELEVENLABS_API_KEY, GROQ_API_KEY,OPENAI_API_KEY
 
 load_dotenv()
 
@@ -17,7 +18,7 @@ load_dotenv()
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 BASE_DIR = Path(__file__).resolve().parents[4]
 VECTORSTORE_DIR = BASE_DIR / "src" / "apuntes" / "rag" / "vectorstores"
-api_key = os.getenv("ELEVENLABS_API_KEY")
+api_key = ELEVENLABS_API_KEY
 client = ElevenLabs(api_key=api_key)
 
 def dividir_en_bloques(lista, tamano):
@@ -108,7 +109,7 @@ def tts_func(
     import uuid
     import os
 
-    api_key = os.getenv("ELEVENLABS_API_KEY")
+    api_key = ELEVENLABS_API_KEY
     client = ElevenLabs(api_key=api_key)
 
     if voz_id is None:
@@ -134,14 +135,14 @@ def tts_func(
 
 # LLMs
 llm_groq = ChatOpenAI(
-    api_key=os.getenv("GROQ_API_KEY"),
+    api_key= GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1",
     model="llama3-70b-8192",
     temperature=0.2
 )
 
 llm_gpt35 = ChatOpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=OPENAI_API_KEY,
     model="gpt-3.5-turbo",
     temperature=0.2
 )

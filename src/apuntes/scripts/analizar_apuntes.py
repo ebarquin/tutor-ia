@@ -5,6 +5,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import pdfplumber
 from transformers import pipeline
 from openai import OpenAI
+from src.config import GROQ_API_KEY
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -25,7 +26,6 @@ def extraer_texto_pdf(archivo_path):
             texto += page.extract_text() + "\n"
     return texto
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = OpenAI(
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1"

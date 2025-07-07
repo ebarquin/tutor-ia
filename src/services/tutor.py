@@ -1,6 +1,8 @@
 from pathlib import Path
 from datetime import datetime
 import shutil
+from src.config import OPENAI_API_KEY
+
 
 # --- tiktoken import para contar tokens ---
 try:
@@ -20,6 +22,8 @@ from src.apuntes.scripts.actualizar_materias import cargar_base, guardar_base
 from langchain_openai import ChatOpenAI
 import os
 import re
+from src.config import GROQ_API_KEY
+
 
 """
 tutor.py - Lógica de negocio centralizada para Tutor-IA
@@ -38,7 +42,6 @@ puntos de entrada (web y CLI).
 import openai
 
 # Obtén la API Key de OpenAI desde variable de entorno o config
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY no está configurada en el entorno.")
 
@@ -343,7 +346,7 @@ def enriquecer_apuntes_servicio(materia, tema):
     docs = store.similarity_search("", k=1000)
     chunks_expansion = [doc for doc in docs if doc.metadata.get("fuente") == "expansion_llm"]
     llm = ChatOpenAI(
-        api_key=os.getenv("GROQ_API_KEY"),
+        api_key= GROQ_API_KEY,
         base_url="https://api.groq.com/openai/v1",
         model="llama3-70b-8192",
         temperature=0.2

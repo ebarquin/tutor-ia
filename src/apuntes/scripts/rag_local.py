@@ -8,11 +8,13 @@ from openai import OpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from pathlib import Path
+from src.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
+
 
 # Cargar variables de entorno
 load_dotenv()
-token = os.getenv("HUGGINGFACE_TOKEN")
-groq_key = os.getenv("GROQ_API_KEY")
+token = HUGGINGFACE_TOKEN
+groq_key = GROQ_API_KEY
 
 # Cliente de Groq
 client = OpenAI(

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List
 from src.apuntes.scripts.agents.agent_tools import postprocesar_clase_magistral_groq
 import os
+from src.config import GROQ_API_KEY
 
 from src.services.tutor import (
     responder_pregunta_servicio,
@@ -148,7 +149,7 @@ def generar_clase_magistral(materia: str, tema: str):
         if not subtemas:
             raise HTTPException(status_code=404, detail="No se encontraron subtemas para generar la clase magistral.")
         texto_clase = "\n\n".join([s["desarrollo"] for s in subtemas])
-        groq_api_key = os.getenv("GROQ_API_KEY")
+        groq_api_key = api_key = GROQ_API_KEY
         texto_clase_limpio = postprocesar_clase_magistral_groq(texto_clase, groq_api_key)
         insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio)
         return {"mensaje": "Clase magistral generada correctamente."}

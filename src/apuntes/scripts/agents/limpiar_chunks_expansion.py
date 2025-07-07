@@ -4,6 +4,8 @@ from src.apuntes.scripts.agents.agent_tools import cargar_vectorstore, VECTORSTO
 import shutil
 import os
 from pathlib import Path
+from src.config import OPENAI_API_KEY
+
 
 def limpiar_expansion_en_todos():
     vectorstore_dir = VECTORSTORE_DIR
@@ -62,23 +64,12 @@ from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 
-# load_dotenv()
-
-# modelo_llm =ChatOpenAI(
-#     api_key=os.getenv("OPENAI_API_KEY"),
-#     base_url="https://api.groq.com/openai/v1",
-#     model="llama3-70b-8192",
-#     temperature=0.2
-# )  # Ajusta a tu clase/modelo real
-# resultado = generar_clase_magistral("historia", "primera_guerra_mundial", modelo_llm)
-# print(resultado)
-
 from src.apuntes.scripts.agents.agent_tools import generar_clase_magistral_en_bloques, tts_func
 from langchain_openai import ChatOpenAI
 import os
 
 modelo_llm = ChatOpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key= OPENAI_API_KEY,
     base_url="https://api.groq.com/openai/v1",
     model="llama3-70b-8192",
     temperature=0.2
