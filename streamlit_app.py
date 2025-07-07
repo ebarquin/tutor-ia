@@ -7,6 +7,16 @@ import os
 
 st.cache_data.clear()
 
+def seleccionar_materia_y_tema(materias, cargar_temas_func, key_materia, key_tema, label_materia="Materia", label_tema="Tema"):
+    """
+    Selector reutilizable de materia y tema para Streamlit.
+    Devuelve (materia, tema)
+    """
+    materia = st.selectbox(label_materia, materias, key=key_materia)
+    temas = cargar_temas_func(materia) if materia else []
+    tema = st.selectbox(label_tema, temas, key=key_tema)
+    return materia, tema
+
 # --- Personalización visual global y del sidebar ---
 st.markdown("""
     <style>
@@ -290,9 +300,7 @@ elif selected.strip() == "Subir apuntes":
 
 elif selected.strip() == "Enriquecer apuntes":
     st.header("Enriquecer apuntes con IA")
-    materia_enriq = st.selectbox("Materia", materias, key="materia_enriq")
-    temas_enriq = cargar_temas(materia_enriq) if materia_enriq else []
-    tema_enriq = st.selectbox("Tema", temas_enriq, key="tema_enriq")
+    materia_enriq, tema_enriq = seleccionar_materia_y_tema(materias, cargar_temas, "materia_enriq", "tema_enriq")
     if st.button("Enriquecer apuntes"):
         if materia_enriq and tema_enriq:
             with st.spinner("Enriqueciendo tus apuntes... Este proceso puede tardar varios segundos. No cierres la ventana."):
@@ -326,9 +334,7 @@ elif selected.strip() == "Enriquecer apuntes":
 
 elif selected.strip() == "Evaluar desarrollo":
     st.header("Evaluar un desarrollo completo de tema")
-    materia_eval = st.selectbox("Materia", materias, key="materia_eval")
-    temas_eval = cargar_temas(materia_eval) if materia_eval else []
-    tema_eval = st.selectbox("Tema", temas_eval, key="tema_eval")
+    materia_eval, tema_eval = seleccionar_materia_y_tema(materias, cargar_temas, "materia_eval", "tema_eval")
     titulo_eval = st.text_input("Título del desarrollo", key="titulo_eval")
     desarrollo = st.text_area("Desarrollo del tema", height=300)
 
@@ -352,9 +358,7 @@ elif selected.strip() == "Evaluar desarrollo":
 
 elif selected.strip() == "Responder pregunta":
     st.header("Haz una pregunta sobre tus apuntes")
-    materia = st.selectbox("Materia", materias, key="materia_pregunta")
-    temas = cargar_temas(materia) if materia else []
-    tema = st.selectbox("Tema", temas, key="tema_pregunta")
+    materia, tema = seleccionar_materia_y_tema(materias, cargar_temas, "materia_pregunta", "tema_pregunta")
     pregunta = st.text_area("Pregunta")
 
     if st.button("Enviar pregunta"):
@@ -373,9 +377,7 @@ elif selected.strip() == "Responder pregunta":
 
 elif selected.strip() == "Explicar como un niño":
     st.header("Explica un tema como si tuvieras 12 años")
-    materia_nino = st.selectbox("Materia", materias, key="materia_nino")
-    temas_nino = cargar_temas(materia_nino) if materia_nino else []
-    tema_nino = st.selectbox("Tema", temas_nino, key="tema_nino")
+    materia_nino, tema_nino = seleccionar_materia_y_tema(materias, cargar_temas, "materia_nino", "tema_nino")
 
     if st.button("Explicar"):
         if materia_nino and tema_nino:
@@ -393,9 +395,7 @@ elif selected.strip() == "Explicar como un niño":
 
 elif selected.strip() == "Clase magistral":
     st.header("📚 Clase magistral generada por IA")
-    materia_cm = st.selectbox("Materia", materias, key="materia_cm")
-    temas_cm = cargar_temas(materia_cm) if materia_cm else []
-    tema_cm = st.selectbox("Tema", temas_cm, key="tema_cm")
+    materia_cm, tema_cm = seleccionar_materia_y_tema(materias, cargar_temas, "materia_cm", "tema_cm")
 
     if materia_cm and tema_cm:
         try:
