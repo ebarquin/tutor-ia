@@ -192,10 +192,21 @@ def enriquecer_apuntes(materia: str, tema: str):
 from fastapi import HTTPException
 
 # Nuevo endpoint para generar clase magistral
+# --- Función auxiliar para construir respuestas de error robustas y mantener historial ---
+def construir_respuesta_error(req, mensaje):
+    """Crea la respuesta de error con el historial actualizado."""
+    historial_actualizado = req.historial + [MensajeChat(role="tutor", content=mensaje)]
+    return ChatExplicaSimpleResponse(
+        respuesta=mensaje,
+        historial=historial_actualizado
+    )
+
+
 @router.post("/chat_explica_simple", response_model=ChatExplicaSimpleResponse)
 def chat_explica_simple(req: ChatExplicaSimpleRequest):
-    # Recuperar contexto relevante usando responder_pregunta_servicio
-    # Si no hay historial, contexto vacío
+    # ATENCIÓN: Esta función requiere una futura refactorización/modularización por su tamaño y complejidad actuales.
+    # Se recomienda extraer lógica en helpers y manejar casos de error de manera aún más granular en el futuro.
+
     pregunta_actual = req.historial[-1].content if req.historial else ""
 
     # Comprobar si la pregunta es relevante respecto a los apuntes
@@ -205,6 +216,7 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
             pregunta_relevante = es_pregunta_relevante(req.materia, req.tema, pregunta_actual)
         except Exception as e:
             print(f"[RAG Chat] Error comprobando relevancia de la pregunta: {e}")
+            # Consideramos irrelevante si hay error, pero devolvemos mensaje claro después
             pregunta_relevante = False
 
     if not pregunta_relevante:
@@ -217,7 +229,10 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                     contexto = contexto["respuesta"]
             except Exception as e:
                 print(f"[RAG Chat] Error en segunda pasada contexto: {e}")
-                contexto = ""
+                return construir_respuesta_error(
+                    req,
+                    "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                )
             contexto = limpiar_contexto(contexto)
 
             if contexto.strip():
@@ -247,29 +262,53 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                         "temperature": 0.7
                     }
                     print("Payload enviado a Groq (segunda pasada):", data)
-                    response = requests.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers=headers,
-                        json=data,
-                        timeout=60
-                    )
-                    response.raise_for_status()
-                    result = response.json()
-                    respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    try:
+                        response = requests.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers=headers,
+                            json=data,
+                            timeout=60
+                        )
+                        response.raise_for_status()
+                        result = response.json()
+                        respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    except requests.exceptions.RequestException as e:
+                        print(f"[ERROR Groq segunda pasada][RequestException] {e}")
+                        return construir_respuesta_error(
+                            req,
+                            "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                        )
+                    except Exception as e:
+                        print(f"[ERROR Groq segunda pasada][General] {e}")
+                        return construir_respuesta_error(
+                            req,
+                            "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                        )
                 except Exception as e:
-                    print(f"[ERROR Groq segunda pasada] {e}")
-                    respuesta = "Lo siento, no he podido generar una respuesta en este momento."
+                    print(f"[ERROR Groq segunda pasada][Outer] {e}")
+                    return construir_respuesta_error(
+                        req,
+                        "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                    )
+                if not respuesta:
+                    return construir_respuesta_error(
+                        req,
+                        "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                    )
                 historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
                 return ChatExplicaSimpleResponse(
                     respuesta=respuesta,
                     historial=historial_actualizado
                 )
+            # Si no hay contexto, es como si no hubiera información suficiente
+            return construir_respuesta_error(
+                req,
+                "Lo siento, no puedo responder a esa pregunta porque no está en tus apuntes. Por favor, pregunta algo sobre el tema que tienes en tus apuntes."
+            )
         # Si no pasa la segunda pasada...
-        respuesta = "Lo siento, no puedo responder a preguntas fuera del contexto de tus apuntes. Por favor, haz preguntas relacionadas con tus apuntes para obtener la mejor ayuda."
-        historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
-        return ChatExplicaSimpleResponse(
-            respuesta=respuesta,
-            historial=historial_actualizado
+        return construir_respuesta_error(
+            req,
+            "Lo siento, no puedo responder a preguntas fuera del contexto de tus apuntes. Por favor, haz preguntas relacionadas con tus apuntes para obtener la mejor ayuda."
         )
     else:
         contexto = ""
@@ -280,15 +319,16 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                     contexto = contexto["respuesta"]
             except Exception as e:
                 print(f"[RAG Chat] Error recuperando contexto: {e}")
-                contexto = ""
+                return construir_respuesta_error(
+                    req,
+                    "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                )
             contexto = limpiar_contexto(contexto)
 
         if not contexto.strip():
-            respuesta = "Lo siento, no puedo responder a esa pregunta porque no está en tus apuntes. Por favor, pregunta algo sobre el tema que tienes en tus apuntes."
-            historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
-            return ChatExplicaSimpleResponse(
-                respuesta=respuesta,
-                historial=historial_actualizado
+            return construir_respuesta_error(
+                req,
+                "Lo siento, no puedo responder a esa pregunta porque no está en tus apuntes. Por favor, pregunta algo sobre el tema que tienes en tus apuntes."
             )
 
         # Preparar system_prompt solo si hay contexto relevante
@@ -317,22 +357,40 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                 "temperature": 0.7
             }
             print("Payload enviado a Groq:", data)
-            response = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json=data,
-                timeout=60
-            )
-            response.raise_for_status()
-            result = response.json()
-            respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-
+            try:
+                response = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=data,
+                    timeout=60
+                )
+                response.raise_for_status()
+                result = response.json()
+                respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            except requests.exceptions.RequestException as e:
+                print(f"[ERROR Groq][RequestException] {e}")
+                return construir_respuesta_error(
+                    req,
+                    "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                )
+            except Exception as e:
+                print(f"[ERROR Groq][General] {e}")
+                return construir_respuesta_error(
+                    req,
+                    "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+                )
         except Exception as e:
-            print(f"[ERROR Groq] {e}")
-            respuesta = "Lo siento, no he podido generar una respuesta en este momento."
-
+            print(f"[ERROR Groq][Outer] {e}")
+            return construir_respuesta_error(
+                req,
+                "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+            )
+        if not respuesta:
+            return construir_respuesta_error(
+                req,
+                "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
+            )
         historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
-
         return ChatExplicaSimpleResponse(
             respuesta=respuesta,
             historial=historial_actualizado
