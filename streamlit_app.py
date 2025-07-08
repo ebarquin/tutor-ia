@@ -244,71 +244,88 @@ st.set_page_config(page_title="Tutor-IA", layout="centered")
 
 
 # Logo
-st.sidebar.image("tutor_ia_logo.png", width=120)
-st.sidebar.title("Tutor-IA")
 
-#
-# --- NUEVO MENÚ LATERAL: TODAS LAS OPCIONES VISIBLES ---
-# Añadimos "💬 Chat explicativo" justo antes de "Formación"
-menu_options = [
-    ("Portada", "house"),
-    ("Gestión de apuntes", "folder"),
-    ("    Subir apuntes", ""),
-    ("    Enriquecer apuntes", ""),
-    ("Evaluación", "check2-circle"),
-    ("    Evaluar desarrollo", ""),
-    ("Consultar", "search"),
-    ("    Responder pregunta", ""),
-    ("    Explicar como un niño", ""),
-    ("💬 Chat explicativo", "chat-dots"),
-    ("Formación", "book"),
-    ("    Clase magistral", ""),
-    ("Administración", "gear"),
-    ("    Borrar apuntes (admin)", ""),
+menu_blocks = [
+    {
+        "section": "🏠 PORTADA",
+        "options": [
+            {"label": "🏠 Portada"},
+        ],
+    },
+    {
+        "section": "📂 GESTIÓN DE APUNTES",
+        "options": [
+            {"label": "⬆️ Subir apuntes"},
+            {"label": "✨ Enriquecer apuntes"},
+        ],
+    },
+    {
+        "section": "📝 EVALUACIÓN",
+        "options": [
+            {"label": "📋 Evaluar desarrollo"},
+        ],
+    },
+    {
+        "section": "🔍 CONSULTAR",
+        "options": [
+            {"label": "👶 Explicar como un niño"},
+        ],
+    },
+    {
+        "section": "💬 CHAT EXPLICATIVO",
+        "options": [
+            {"label": "💬 Chat explicativo"},
+        ],
+    },
+    {
+        "section": "📚 FORMACIÓN",
+        "options": [
+            {"label": "📖 Clase magistral"},
+        ],
+    },
+    {
+        "section": "⚙️ ADMINISTRACIÓN",
+        "options": [
+            {"label": "🗑️ Borrar apuntes (admin)"},
+        ],
+    },
 ]
-labels, icons = zip(*menu_options)
 
 with st.sidebar:
-    selected = option_menu(
-        menu_title=None,
-        options=labels,
-        icons=icons,
-        menu_icon="cast",
-        default_index=0,
-        orientation="vertical",
-        styles={
-            "container": {"background-color": "#fff", "padding": "12px"},
-            "icon": {"color": "#E76F51", "font-size": "18px"},
-            "nav-link": {
-                "font-size": "17px",
-                "text-align": "left",
-                "margin":"0px",
-                "color": "#1a3247",
-                "font-weight": "normal"
-            },
-            "nav-link-selected": {
-                "background-color": "#e3e3e3",
-                "color": "#222",
-                "font-weight": "bold"
-            },
-        }
-    )
+    if "sidebar_section_open" not in st.session_state:
+        st.session_state.sidebar_section_open = menu_blocks[0]["section"]
 
-# --- Control para que los títulos no tengan acción ---
-# Las subopciones empiezan con dos espacios
-subopciones_validas = [opt for opt in labels if opt.startswith("  ")]
-# Opciones principales (títulos de sección, sin espacios al principio, excepto Portada)
-secciones = {"Gestión de apuntes", "Evaluación", "Consultar", "Formación", "Administración"}
+    st.sidebar.image("tutor_ia_logo.png", width=120)
+    st.sidebar.title("Tutor-IA")
 
-# Guardamos la última subopción elegida
-if "last_valid_option" not in st.session_state:
-    st.session_state["last_valid_option"] = "Portada"
+    for block in menu_blocks:
+        is_open = st.session_state.sidebar_section_open == block["section"]
 
-if selected in secciones:
-    # Si el usuario pulsa una sección, restauramos la última subopción o Portada
-    selected = st.session_state["last_valid_option"]
-elif selected in subopciones_validas or selected == "Portada":
-    st.session_state["last_valid_option"] = selected
+        # Botón nativo Streamlit para abrir/cerrar secciones
+        if st.button(block["section"], key=f'section_{block["section"]}'):
+            st.session_state.sidebar_section_open = block["section"]
+            # Si la sección cambia, selecciona la primera opción de la sección automáticamente
+            if block["options"]:
+                st.session_state["menu_selected"] = block["options"][0]["label"]
+            st.rerun()
+
+        # Mostrar las opciones solo si la sección está abierta
+        if is_open:
+            for opt in block["options"]:
+                is_sel = st.session_state.get("menu_selected", "") == opt["label"]
+                if st.button(
+                    opt["label"],
+                    key=f"opt_{opt['label']}",
+                    use_container_width=True
+                ):
+                    st.session_state["menu_selected"] = opt["label"]
+                    st.rerun()
+
+    # Persistir selección global para usarla en el cuerpo principal
+    if "menu_selected" not in st.session_state:
+        st.session_state["menu_selected"] = menu_blocks[0]["options"][0]["label"]
+
+selected = st.session_state["menu_selected"]
 
 # --- FUNCIONES DE CARGA ---
 @st.cache_data
@@ -333,7 +350,7 @@ def cargar_temas(materia):
 
 materias = cargar_materias()
 
-if selected == "Portada":
+if selected == "🏠 Portada":
     st.title("🎓 Tutor Inteligente de Apuntes")
     st.markdown("""
     ¡Bienvenido a **Tutor-IA**!  
@@ -342,7 +359,7 @@ if selected == "Portada":
     """)
     st.info("¿Tienes dudas, feedback o sugerencias? Contacta con el equipo Tutor-IA.")
 
-elif selected.strip() == "Subir apuntes":
+elif selected.strip() == "⬆️ Subir apuntes":
     st.header("Subir y procesar nuevo apunte")
     materia_subir = st.text_input("Materia", key="materia_subir")
     tema_subir = st.text_input("Tema", key="tema_subir")
@@ -372,7 +389,7 @@ elif selected.strip() == "Subir apuntes":
         else:
             st.warning("Por favor, completa todos los campos y selecciona un archivo.")
 
-elif selected.strip() == "Enriquecer apuntes":
+elif selected.strip() == "✨ Enriquecer apuntes":
     import traceback
     st.header("Enriquecer apuntes con IA")
     materia_enriq, tema_enriq = seleccionar_materia_y_tema(materias, cargar_temas, "materia_enriq", "tema_enriq")
@@ -429,7 +446,7 @@ elif selected.strip() == "Enriquecer apuntes":
             st.error("❌ Ha ocurrido un error inesperado durante el enriquecimiento:")
             st.code(traceback.format_exc())
 
-elif selected.strip() == "Evaluar desarrollo":
+elif selected.strip() == "📋 Evaluar desarrollo":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
         st.session_state.pop(key, None)
     st.header("Evaluar un desarrollo completo de tema")
@@ -458,33 +475,8 @@ elif selected.strip() == "Evaluar desarrollo":
                     st.error(f"❌ {detail}")
         else:
             st.warning("Por favor, completa todos los campos antes de enviar.")
-
-elif selected.strip() == "Responder pregunta":
-    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
-        st.session_state.pop(key, None)
-    st.header("Haz una pregunta sobre tus apuntes")
-    materia, tema = seleccionar_materia_y_tema(materias, cargar_temas, "materia_pregunta", "tema_pregunta")
-    pregunta = st.text_area("Pregunta")
-
-    if st.button("Enviar pregunta"):
-        if materia and tema and pregunta:
-            with st.spinner("Obteniendo respuesta..."):
-                response = requests.get(
-                    f"{API_URL}/responder_pregunta",
-                    params={"materia": materia, "tema": tema, "pregunta": pregunta}
-                )
-                if response.status_code == 200:
-                    st.success(response.json()["respuesta"])
-                else:
-                    try:
-                        detail = response.json().get("detail", "Se produjo un error inesperado.")
-                    except Exception:
-                        detail = "Se produjo un error inesperado."
-                    st.error(f"❌ {detail}")
-        else:
-            st.warning("Por favor, completa todos los campos.")
-
-elif selected.strip() == "Explicar como un niño":
+            
+elif selected.strip() == "👶 Explicar como un niño":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
         st.session_state.pop(key, None)
     st.header("Explica un tema como si tuvieras 12 años")
@@ -720,7 +712,7 @@ elif selected.strip() == "💬 Chat explicativo":
             except Exception as e:
                 st.error(f"❌ Error de conexión con la API: {e}")
 
-elif selected.strip() == "Clase magistral":
+elif selected.strip() == "📖 Clase magistral":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
         st.session_state.pop(key, None)
     st.header("📚 Clase magistral generada por IA")
@@ -743,25 +735,24 @@ elif selected.strip() == "Clase magistral":
             if clase:
                 st.success("✅ Clase magistral encontrada")
                 st.markdown(clase["page_content"])
-            else:
-                st.info("ℹ️ Aún no existe una clase magistral generada para este tema. Pulsa el botón para crearla con IA.")
-                generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn")
-                if generar:
-                    with st.spinner("Generando clase magistral..."):
-                        response = requests.post(
-                            f"{API_URL}/generar_clase_magistral",
-                            params={"materia": materia_cm, "tema": tema_cm}
-                        )
-                        if response.status_code == 200:
-                            st.success("✅ Clase magistral generada. Recarga para visualizarla.")
-                            st.cache_data.clear()
-                            st.rerun()
-                        else:
-                            try:
-                                detail = response.json().get("detail", "Se produjo un error inesperado.")
-                            except Exception:
-                                detail = "Se produjo un error inesperado."
-                            st.error(f"❌ {detail}")
+            st.info("ℹ️ Aún no existe una clase magistral generada para este tema. Pulsa el botón para crearla con IA.")
+            generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn")
+            if generar:
+                with st.spinner("Generando clase magistral..."):
+                    response = requests.post(
+                        f"{API_URL}/generar_clase_magistral",
+                        params={"materia": materia_cm, "tema": tema_cm}
+                    )
+                    if response.status_code == 200:
+                        st.success("✅ Clase magistral generada. Recarga para visualizarla.")
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        try:
+                            detail = response.json().get("detail", "Se produjo un error inesperado.")
+                        except Exception:
+                            detail = "Se produjo un error inesperado."
+                        st.error(f"❌ {detail}")
         except FileNotFoundError:
             st.info("ℹ️ No existe ningún apunte para este tema. Por favor, sube apuntes antes de generar la clase magistral.")
             generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn_2")
@@ -784,7 +775,7 @@ elif selected.strip() == "Clase magistral":
         except Exception as e:
             st.error(f"Error leyendo el JSON: {e}")
 
-elif selected.strip() == "Borrar apuntes (admin)":
+elif selected.strip() == "🗑️ Borrar apuntes (admin)":
     st.header("🧹 Borrar todos los apuntes del sistema")
     if st.button("🧹 Borrar todos los apuntes", key="borrar_todos_apuntes_btn"):
         with st.spinner("Borrando todos los apuntes..."):
