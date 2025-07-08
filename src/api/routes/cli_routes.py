@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List
 from src.apuntes.scripts.agents.agent_tools import postprocesar_clase_magistral_groq
 import os
+import requests
 from src.config import GROQ_API_KEY
 from src.api.schemas import ChatExplicaSimpleRequest, ChatExplicaSimpleResponse, MensajeChat
 
@@ -160,43 +161,63 @@ def enriquecer_apuntes(materia: str, tema: str):
 from fastapi import HTTPException
 
 # Nuevo endpoint para generar clase magistral
-@router.post("/generar_clase_magistral")
-def generar_clase_magistral(materia: str, tema: str):
-    """
-    Genera la clase magistral completa para una materia y tema, y la guarda en el JSON de chunks.
-    """
-    try:
-        print(f"Llamando a agente_clase_magistral para materia={materia}, tema={tema}")
-        subtemas = list(agente_clase_magistral(materia, tema))
-        if not subtemas:
-            raise HTTPException(status_code=404, detail="No se encontraron subtemas para generar la clase magistral.")
-        texto_clase = "\n\n".join([s["desarrollo"] for s in subtemas])
-        groq_api_key = api_key = GROQ_API_KEY
-        texto_clase_limpio = postprocesar_clase_magistral_groq(texto_clase, groq_api_key)
-        insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio)
-        return {"mensaje": "Clase magistral generada correctamente."}
-    except Exception as e:
-        print(f"[ERROR generar_clase_magistral] {e}")
-        raise HTTPException(status_code=500, detail="Error al generar la clase magistral. Por favor, verifica tus apuntes o inténtalo más tarde.")
-
-# Endpoint para borrar todos los datos de apuntes, chunks y vectorstores
-@router.post("/borrar_apuntes_todos")
-def borrar_apuntes_todos():
-    """
-    Borra todos los datos de apuntes, chunks y vectorstores.
-    """
-    limpiar_apuntes()
-    return {"mensaje": "¡Todos los datos de apuntes, chunks y vectorstores han sido eliminados!"}
-
 @router.post("/chat_explica_simple", response_model=ChatExplicaSimpleResponse)
 def chat_explica_simple(req: ChatExplicaSimpleRequest):
-    # Aquí iría tu llamada real al LLM
-    # De momento, simulamos una respuesta sencilla
+    # Recuperar contexto relevante usando responder_pregunta_servicio
+    # Si no hay historial, contexto vacío
+    pregunta_actual = req.historial[-1].content if req.historial else ""
+    contexto = ""
+    if req.materia and req.tema and pregunta_actual:
+        try:
+            contexto = responder_pregunta_servicio(req.materia, req.tema, pregunta_actual)
+            # Si devuelve un dict o similar, asegúrate de coger el string
+            if isinstance(contexto, dict) and "respuesta" in contexto:
+                contexto = contexto["respuesta"]
+        except Exception as e:
+            print(f"[RAG Chat] Error recuperando contexto: {e}")
+            contexto = ""
 
-    user_msg = req.historial[-1].content if req.historial else ""
-    respuesta = f"(Respuesta simulada para el tema '{req.tema}', nivel '{req.nivel}'): {user_msg[::-1]}"
+    system_prompt = (
+        "Eres un tutor académico que explica cualquier tema de forma clara, precisa y adaptada a un estudiante que está empezando. "
+        "Si la respuesta puede ser breve, no la extiendas innecesariamente. Si el usuario te pide explícitamente algo especial, adáptate a su petición.\n\n"
+        f"Utiliza únicamente la siguiente información de los apuntes para responder:\n{contexto}\n"
+    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+    ]
+    for mensaje in req.historial:
+        role = mensaje.role if mensaje.role in ("system", "user", "assistant") else "assistant"
+        messages.append({"role": role, "content": mensaje.content})
+    ultima_pregunta = req.historial[-1].content if req.historial else ""
+    if ultima_pregunta:
+        messages.append({"role": "user", "content": ultima_pregunta})
 
-    # Añade la respuesta al historial
+    try:
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        data = {
+            "model": "llama3-70b-8192",
+            "messages": messages,
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
+        print("Payload enviado a Groq:", data)
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=data,
+            timeout=60
+        )
+        response.raise_for_status()
+        result = response.json()
+        respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+    except Exception as e:
+        print(f"[ERROR Groq] {e}")
+        respuesta = "Lo siento, no he podido generar una respuesta en este momento."
+
     historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
 
     return ChatExplicaSimpleResponse(

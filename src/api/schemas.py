@@ -8,7 +8,6 @@ class MensajeChat(BaseModel):
 class ChatExplicaSimpleRequest(BaseModel):
     materia: str
     tema: str
-    nivel: str
     historial: List[MensajeChat]
 
 class ChatExplicaSimpleResponse(BaseModel):
