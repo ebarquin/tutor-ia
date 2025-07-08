@@ -5,6 +5,51 @@ import time
 import json
 import os
 
+# --- Efecto de tipeo para el último mensaje del tutor en el chat ---
+def render_typing_effect(text, delay=0.012):
+    """Renderiza el texto con efecto de tipeo en Streamlit."""
+    import streamlit as st
+    placeholder = st.empty()
+    displayed = ""
+    for char in text:
+        displayed += char
+        placeholder.markdown(
+            f"""
+            <div style="
+                background:#e3f0fa;
+                border-radius: 12px 12px 12px 0px;
+                padding:10px 14px;
+                margin-bottom:8px;
+                max-width: 65%;
+                text-align: left;
+                margin-right: auto;
+                box-shadow: 1px 1px 8px #1cd4d414;
+            ">
+                <b>Tutor:</b> {displayed}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        time.sleep(delay)
+    # Al final, asegurarse de mostrar el mensaje completo
+    placeholder.markdown(
+        f"""
+        <div style="
+            background:#e3f0fa;
+            border-radius: 12px 12px 12px 0px;
+            padding:10px 14px;
+            margin-bottom:8px;
+            max-width: 65%;
+            text-align: left;
+            margin-right: auto;
+            box-shadow: 1px 1px 8px #1cd4d414;
+        ">
+            <b>Tutor:</b> {text}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 st.cache_data.clear()
 
 def seleccionar_materia_y_tema(materias, cargar_temas_func, key_materia, key_tema, label_materia="Materia", label_tema="Tema"):
@@ -495,7 +540,13 @@ elif selected.strip() == "💬 Chat explicativo":
     # --- Mostrar historial de mensajes (debajo de selectores) ---
     chat_history = st.session_state["chat_history"]
     if chat_history:
-        for entry in chat_history:
+        # Detectar el índice del último mensaje del tutor
+        last_tutor_idx = None
+        for idx in range(len(chat_history) - 1, -1, -1):
+            if chat_history[idx]["role"] == "tutor":
+                last_tutor_idx = idx
+                break
+        for idx, entry in enumerate(chat_history):
             if entry["role"] == "user":
                 st.markdown(
                     f"""
@@ -515,24 +566,31 @@ elif selected.strip() == "💬 Chat explicativo":
                     """,
                     unsafe_allow_html=True
                 )
-            else:
-                st.markdown(
-                    f"""
-                    <div style="
-                        background:#e3f0fa;
-                        border-radius: 12px 12px 12px 0px;
-                        padding:10px 14px;
-                        margin-bottom:8px;
-                        max-width: 65%;
-                        text-align: left;
-                        margin-right: auto;
-                        box-shadow: 1px 1px 8px #1cd4d414;
-                    ">
-                        <b>Tutor:</b> {entry["content"]}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            elif entry["role"] == "tutor":
+                # Solo animar si es el último tutor y aún no está animado
+                if idx == last_tutor_idx and not entry.get("animated", False):
+                    render_typing_effect(entry["content"])
+                    # Marcar como animado (solo en session_state, no backend)
+                    entry["animated"] = True
+                    st.session_state["chat_history"][idx] = entry
+                else:
+                    st.markdown(
+                        f"""
+                        <div style="
+                            background:#e3f0fa;
+                            border-radius: 12px 12px 12px 0px;
+                            padding:10px 14px;
+                            margin-bottom:8px;
+                            max-width: 65%;
+                            text-align: left;
+                            margin-right: auto;
+                            box-shadow: 1px 1px 8px #1cd4d414;
+                        ">
+                            <b>Tutor:</b> {entry["content"]}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
     else:
         st.info("El chat está vacío. ¡Haz tu primera pregunta!")
 
