@@ -25,6 +25,21 @@ client = OpenAI(
 BASE_DIR = Path(__file__).resolve().parent.parent
 FAISS_DIR = BASE_DIR / "rag" / "vectorstores"
 
+def es_pregunta_relevante(materia, tema, pregunta, umbral=0.7):
+    store = cargar_vectorstore(materia, tema)
+    if not store:
+        print("No se pudo cargar el vectorstore para", materia, tema)
+        return False
+    docs_con_score = store.similarity_search_with_score(pregunta, k=3)
+    if not docs_con_score:
+        print("No se encontraron chunks similares.")
+        return False
+    for doc, score in docs_con_score:
+        print(f"Score: {score:.3f} - Texto chunk: {doc.page_content[:100]}")
+    # Usamos el score máximo porque refleja la mayor relevancia de algún chunk respecto a la pregunta
+    score_max = max(score for doc, score in docs_con_score)
+    print(f"Score máximo: {score_max}")
+    return score_max > umbral
 
 def cargar_vectorstore(materia, tema):
     """Carga el vectorstore para una materia y tema específico."""
@@ -48,7 +63,7 @@ def obtener_contexto(materia, tema, pregunta):
     for doc, score in docs_con_score:
         print(f"Score: {score:.4f} | Contenido: {doc.page_content[:100]}...")
 
-    docs_filtrados = [doc for doc, score in docs_con_score if score > 0.35]
+    docs_filtrados = [doc for doc, score in docs_con_score if score > 0.55]
 
     if not docs_filtrados:
         return None, "⚠️ La pregunta no parece estar relacionada con los apuntes disponibles."
