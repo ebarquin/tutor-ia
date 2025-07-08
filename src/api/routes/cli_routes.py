@@ -190,6 +190,26 @@ def enriquecer_apuntes(materia: str, tema: str):
         print(f"[API ERROR] Error inesperado enriqueciendo apuntes: {str(e)}")
         raise HTTPException(status_code=500, detail="Error inesperado al enriquecer los apuntes.")
 
+# --- Endpoint restaurado: generar_clase_magistral ---
+@router.post("/generar_clase_magistral")
+def generar_clase_magistral(materia: str, tema: str):
+    """
+    Genera la clase magistral completa para una materia y tema, y la guarda en el JSON de chunks.
+    """
+    try:
+        print(f"Llamando a agente_clase_magistral para materia={materia}, tema={tema}")
+        subtemas = list(agente_clase_magistral(materia, tema))
+        if not subtemas:
+            raise HTTPException(status_code=404, detail="No se encontraron subtemas para generar la clase magistral.")
+        texto_clase = "\n\n".join([s["desarrollo"] for s in subtemas])
+        groq_api_key = api_key = GROQ_API_KEY
+        texto_clase_limpio = postprocesar_clase_magistral_groq(texto_clase, groq_api_key)
+        insertar_clase_magistral_en_json(materia, tema, texto_clase, texto_clase_limpio)
+        return {"mensaje": "Clase magistral generada correctamente."}
+    except Exception as e:
+        print(f"[ERROR generar_clase_magistral] {e}")
+        raise HTTPException(status_code=500, detail="Error al generar la clase magistral. Por favor, verifica tus apuntes o inténtalo más tarde.")
+
 
 from fastapi import HTTPException
 

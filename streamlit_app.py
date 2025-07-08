@@ -722,7 +722,7 @@ elif selected.strip() == "📖 Clase magistral":
         try:
             tema_slug = tema_cm.lower().replace(" ", "_")
             ruta_json = f"src/apuntes/rag/chunks/{materia_cm}__{tema_slug}.json"
-            st.write(f"📁 Buscando archivo en: `{ruta_json}`")
+            
 
             with open(ruta_json, "r", encoding="utf-8") as f:
                 chunks = json.load(f)
@@ -735,26 +735,28 @@ elif selected.strip() == "📖 Clase magistral":
             if clase:
                 st.success("✅ Clase magistral encontrada")
                 st.markdown(clase["page_content"])
-            st.info("ℹ️ Aún no existe una clase magistral generada para este tema. Pulsa el botón para crearla con IA.")
-            generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn")
-            if generar:
-                with st.spinner("Generando clase magistral..."):
-                    response = requests.post(
-                        f"{API_URL}/generar_clase_magistral",
-                        params={"materia": materia_cm, "tema": tema_cm}
-                    )
-                    if response.status_code == 200:
-                        st.success("✅ Clase magistral generada. Recarga para visualizarla.")
-                        st.cache_data.clear()
-                        st.rerun()
-                    else:
-                        try:
-                            detail = response.json().get("detail", "Se produjo un error inesperado.")
-                        except Exception:
-                            detail = "Se produjo un error inesperado."
-                        st.error(f"❌ {detail}")
+            else:
+                st.info("ℹ️ Aún no existe una clase magistral generada para este tema. Pulsa el botón para crearla con IA.")
+                generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn")
+                if generar:
+                    with st.spinner("Generando clase magistral..."):
+                        response = requests.post(
+                            f"{API_URL}/generar_clase_magistral",
+                            params={"materia": materia_cm, "tema": tema_cm}
+                        )
+                        if response.status_code == 200:
+                            st.success("✅ Clase magistral generada. Recarga para visualizarla.")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            try:
+                                detail = response.json().get("detail", "Se produjo un error inesperado.")
+                            except Exception:
+                                detail = "Se produjo un error inesperado."
+                            st.error(f"❌ {detail}")
         except FileNotFoundError:
             st.info("ℹ️ No existe ningún apunte para este tema. Por favor, sube apuntes antes de generar la clase magistral.")
+            # Aquí nunca hay clase, así que solo mostramos el botón y acción si no existe
             generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn_2")
             if generar:
                 with st.spinner("Generando clase magistral..."):
