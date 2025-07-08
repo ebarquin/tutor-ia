@@ -1,3 +1,15 @@
+PREGUNTAS_GENERICAS = [
+    "explica", "resumen", "resumir", "de qué trata", "introducción",
+    "puedes hacer un resumen", "puedes explicarme", "hazme un resumen", "explica este tema", "qué sabes de",
+    "resumen de", "en ", "palabras", "hazme un resumen de ", "puedes resumir", "resume en", "resumemelo",
+    "podrías resumir", "podrías hacerme un resumen de ", "resumen en"
+]
+def es_pregunta_generica(pregunta, tema):
+    p = pregunta.lower()
+    t = tema.lower()
+    if t in p:
+        return True
+    return any(pat in p for pat in PREGUNTAS_GENERICAS)
 from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
 from pathlib import Path
 from pydantic import BaseModel
@@ -7,6 +19,7 @@ import os
 import requests
 from src.config import GROQ_API_KEY
 from src.api.schemas import ChatExplicaSimpleRequest, ChatExplicaSimpleResponse, MensajeChat
+from src.apuntes.scripts.rag_local import es_pregunta_relevante
 
 from src.services.tutor import (
     responder_pregunta_servicio,
@@ -15,6 +28,24 @@ from src.services.tutor import (
     evaluar_desarrollo_servicio,
     enriquecer_apuntes_servicio
 )
+
+def limpiar_contexto(contexto: str) -> str:
+    """
+    Elimina frases limitantes o negativas del contexto para que el modelo nunca devuelva
+    respuestas tipo 'Lo siento, no hay suficiente información...'.
+    """
+    frases_prohibidas = [
+        "lo siento", "no puedo", "no hay suficiente información",
+        "el texto proporcionado", "no se proporciona", "si deseas",
+        # "sin embargo", "no cubre todos los aspectos", "no tengo suficiente información",
+        "no puedo generar", "no puedo responder", "no puedo ayudarte", "no está disponible"
+    ]
+    lineas = contexto.split('\n')
+    limpias = [
+        l for l in lineas
+        if not any(f.lower() in l.lower() for f in frases_prohibidas)
+    ]
+    return '\n'.join(limpias).strip()
 
 router = APIRouter()
 
@@ -166,61 +197,143 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
     # Recuperar contexto relevante usando responder_pregunta_servicio
     # Si no hay historial, contexto vacío
     pregunta_actual = req.historial[-1].content if req.historial else ""
-    contexto = ""
+
+    # Comprobar si la pregunta es relevante respecto a los apuntes
+    pregunta_relevante = False
     if req.materia and req.tema and pregunta_actual:
         try:
-            contexto = responder_pregunta_servicio(req.materia, req.tema, pregunta_actual)
-            # Si devuelve un dict o similar, asegúrate de coger el string
-            if isinstance(contexto, dict) and "respuesta" in contexto:
-                contexto = contexto["respuesta"]
+            pregunta_relevante = es_pregunta_relevante(req.materia, req.tema, pregunta_actual)
         except Exception as e:
-            print(f"[RAG Chat] Error recuperando contexto: {e}")
-            contexto = ""
+            print(f"[RAG Chat] Error comprobando relevancia de la pregunta: {e}")
+            pregunta_relevante = False
 
-    system_prompt = (
-        "Eres un tutor académico que explica cualquier tema de forma clara, precisa y adaptada a un estudiante que está empezando. "
-        "Si la respuesta puede ser breve, no la extiendas innecesariamente. Si el usuario te pide explícitamente algo especial, adáptate a su petición.\n\n"
-        f"Utiliza únicamente la siguiente información de los apuntes para responder:\n{contexto}\n"
-    )
-    messages = [
-        {"role": "system", "content": system_prompt},
-    ]
-    for mensaje in req.historial:
-        role = mensaje.role if mensaje.role in ("system", "user", "assistant") else "assistant"
-        messages.append({"role": role, "content": mensaje.content})
-    ultima_pregunta = req.historial[-1].content if req.historial else ""
-    if ultima_pregunta:
-        messages.append({"role": "user", "content": ultima_pregunta})
+    if not pregunta_relevante:
+        # Segunda pasada: ¿Es una pregunta genérica sobre el tema?
+        if req.tema and es_pregunta_generica(pregunta_actual, req.tema):
+            # Forzamos el contexto: cogemos TODOS los apuntes del tema usando el propio tema como pregunta
+            try:
+                contexto = responder_pregunta_servicio(req.materia, req.tema, req.tema)
+                if isinstance(contexto, dict) and "respuesta" in contexto:
+                    contexto = contexto["respuesta"]
+            except Exception as e:
+                print(f"[RAG Chat] Error en segunda pasada contexto: {e}")
+                contexto = ""
+            contexto = limpiar_contexto(contexto)
 
-    try:
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        data = {
-            "model": "llama3-70b-8192",
-            "messages": messages,
-            "max_tokens": 500,
-            "temperature": 0.7
-        }
-        print("Payload enviado a Groq:", data)
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=60
+            if contexto.strip():
+                # Repetimos el flujo de respuesta normal, pero con el contexto completo
+                system_prompt = (
+                    "Eres un tutor académico. Cuando respondas, separa SIEMPRE la respuesta en dos bloques diferenciados:\n"
+                    "1. Primero, incluye SOLO la información que aparece en los apuntes, integrándola de manera natural en el texto y SIN poner ningún título ni etiqueta.\n"
+                    "2. Después, si necesitas completar la respuesta con tu conocimiento general o la pregunta pide una extensión que no puedes cubrir, añade al final un párrafo que empiece en negrita por '**Ampliación generada por la IA:**', y explica qué parte no aparece en los apuntes o si la extensión de la respuesta está limitada por el contexto proporcionado.\n"
+                    "Si la extensión solicitada es mayor que el contexto disponible, responde lo más completo posible y explica en la ampliación que la extensión se ha limitado por la información de los apuntes.\n"
+                    "Nunca inventes ni alteres datos en la primera parte. Si falta información, añade solo conocimiento bien fundamentado en la segunda.\n"
+                    "\nContexto de los apuntes:\n"
+                    f"{contexto}\n"
+                )
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": pregunta_actual}
+                ]
+                try:
+                    headers = {
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Content-Type": "application/json",
+                    }
+                    data = {
+                        "model": "llama3-70b-8192",
+                        "messages": messages,
+                        "max_tokens": 500,
+                        "temperature": 0.7
+                    }
+                    print("Payload enviado a Groq (segunda pasada):", data)
+                    response = requests.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=headers,
+                        json=data,
+                        timeout=60
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+                    respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                except Exception as e:
+                    print(f"[ERROR Groq segunda pasada] {e}")
+                    respuesta = "Lo siento, no he podido generar una respuesta en este momento."
+                historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+                return ChatExplicaSimpleResponse(
+                    respuesta=respuesta,
+                    historial=historial_actualizado
+                )
+        # Si no pasa la segunda pasada...
+        respuesta = "Lo siento, no puedo responder a preguntas fuera del contexto de tus apuntes. Por favor, haz preguntas relacionadas con tus apuntes para obtener la mejor ayuda."
+        historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+        return ChatExplicaSimpleResponse(
+            respuesta=respuesta,
+            historial=historial_actualizado
         )
-        response.raise_for_status()
-        result = response.json()
-        respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+    else:
+        contexto = ""
+        if req.materia and req.tema and pregunta_actual:
+            try:
+                contexto = responder_pregunta_servicio(req.materia, req.tema, pregunta_actual)
+                if isinstance(contexto, dict) and "respuesta" in contexto:
+                    contexto = contexto["respuesta"]
+            except Exception as e:
+                print(f"[RAG Chat] Error recuperando contexto: {e}")
+                contexto = ""
+            contexto = limpiar_contexto(contexto)
 
-    except Exception as e:
-        print(f"[ERROR Groq] {e}")
-        respuesta = "Lo siento, no he podido generar una respuesta en este momento."
+        if not contexto.strip():
+            respuesta = "Lo siento, no puedo responder a esa pregunta porque no está en tus apuntes. Por favor, pregunta algo sobre el tema que tienes en tus apuntes."
+            historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+            return ChatExplicaSimpleResponse(
+                respuesta=respuesta,
+                historial=historial_actualizado
+            )
 
-    historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+        # Preparar system_prompt solo si hay contexto relevante
+        system_prompt = (
+            "Eres un tutor académico. Cuando respondas, separa SIEMPRE la respuesta en dos bloques diferenciados:\n"
+            "1. Primero, incluye SOLO la información que aparece en los apuntes, integrándola de manera natural en el texto y SIN poner ningún título ni etiqueta.\n"
+            "2. Después, si necesitas completar la respuesta con tu conocimiento general o la pregunta pide una extensión que no puedes cubrir, añade al final un párrafo que empiece en negrita por '**Ampliación generada por la IA:**', y explica qué parte no aparece en los apuntes o si la extensión de la respuesta está limitada por el contexto proporcionado.\n"
+            "Si la extensión solicitada es mayor que el contexto disponible, responde lo más completo posible y explica en la ampliación que la extensión se ha limitado por la información de los apuntes.\n"
+            "Nunca inventes ni alteres datos en la primera parte. Si falta información, añade solo conocimiento bien fundamentado en la segunda.\n"
+            "\nContexto de los apuntes:\n"
+            f"{contexto}\n"
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": pregunta_actual}
+        ]
+        try:
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            data = {
+                "model": "llama3-70b-8192",
+                "messages": messages,
+                "max_tokens": 500,
+                "temperature": 0.7
+            }
+            print("Payload enviado a Groq:", data)
+            response = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=60
+            )
+            response.raise_for_status()
+            result = response.json()
+            respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
-    return ChatExplicaSimpleResponse(
-        respuesta=respuesta,
-        historial=historial_actualizado
-    )
+        except Exception as e:
+            print(f"[ERROR Groq] {e}")
+            respuesta = "Lo siento, no he podido generar una respuesta en este momento."
+
+        historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+
+        return ChatExplicaSimpleResponse(
+            respuesta=respuesta,
+            historial=historial_actualizado
+        )

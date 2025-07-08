@@ -648,18 +648,19 @@ elif selected.strip() == "💬 Chat explicativo":
             "nivel": "12_años",  # puedes adaptar esto con un selector si quieres más adelante
             "historial": st.session_state["chat_history"]
         }
-        try:
-            response = requests.post(f"{API_URL}/chat_explica_simple", json=payload, timeout=60)
-            if response.status_code == 200:
-                data = response.json()
-                st.session_state["chat_history"] = data.get("historial", st.session_state["chat_history"])
-                st.session_state["chat_input_key"] += 1
-                st.rerun()
-            else:
-                detail = response.json().get("detail", "Error desconocido al contactar con el backend.")
-                st.error(f"❌ {detail}")
-        except Exception as e:
-            st.error(f"❌ Error de conexión con la API: {e}")
+        with st.spinner("Obteniendo respuesta del tutor..."):
+            try:
+                response = requests.post(f"{API_URL}/chat_explica_simple", json=payload, timeout=60)
+                if response.status_code == 200:
+                    data = response.json()
+                    st.session_state["chat_history"] = data.get("historial", st.session_state["chat_history"])
+                    st.session_state["chat_input_key"] += 1
+                    st.rerun()
+                else:
+                    detail = response.json().get("detail", "Error desconocido al contactar con el backend.")
+                    st.error(f"❌ {detail}")
+            except Exception as e:
+                st.error(f"❌ Error de conexión con la API: {e}")
 
 elif selected.strip() == "Clase magistral":
     for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
