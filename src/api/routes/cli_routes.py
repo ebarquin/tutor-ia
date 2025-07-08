@@ -20,6 +20,8 @@ import requests
 from src.config import GROQ_API_KEY
 from src.api.schemas import ChatExplicaSimpleRequest, ChatExplicaSimpleResponse, MensajeChat
 from src.apuntes.scripts.rag_local import es_pregunta_relevante
+import json
+from datetime import datetime
 
 from src.services.tutor import (
     responder_pregunta_servicio,
@@ -229,6 +231,8 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                     contexto = contexto["respuesta"]
             except Exception as e:
                 print(f"[RAG Chat] Error en segunda pasada contexto: {e}")
+                # LOG: error_groq segunda pasada
+                log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq segunda pasada
                 return construir_respuesta_error(
                     req,
                     "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
@@ -274,38 +278,45 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                         respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
                     except requests.exceptions.RequestException as e:
                         print(f"[ERROR Groq segunda pasada][RequestException] {e}")
+                        log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq segunda pasada
                         return construir_respuesta_error(
                             req,
                             "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
                         )
                     except Exception as e:
                         print(f"[ERROR Groq segunda pasada][General] {e}")
+                        log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq segunda pasada
                         return construir_respuesta_error(
                             req,
                             "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
                         )
                 except Exception as e:
                     print(f"[ERROR Groq segunda pasada][Outer] {e}")
+                    log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq segunda pasada
                     return construir_respuesta_error(
                         req,
                         "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
                     )
                 if not respuesta:
+                    log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq segunda pasada sin respuesta
                     return construir_respuesta_error(
                         req,
                         "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
                     )
                 historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+                log_chat_interaction(req.materia, req.tema, pregunta_actual, "segunda_pasada", respuesta)  # LOG: segunda pasada éxito
                 return ChatExplicaSimpleResponse(
                     respuesta=respuesta,
                     historial=historial_actualizado
                 )
             # Si no hay contexto, es como si no hubiera información suficiente
+            log_chat_interaction(req.materia, req.tema, pregunta_actual, "sin_contexto", "")  # LOG: sin contexto segunda pasada
             return construir_respuesta_error(
                 req,
                 "Lo siento, no puedo responder a esa pregunta porque no está en tus apuntes. Por favor, pregunta algo sobre el tema que tienes en tus apuntes."
             )
         # Si no pasa la segunda pasada...
+        log_chat_interaction(req.materia, req.tema, pregunta_actual, "fuera_contexto", "")  # LOG: pregunta fuera de contexto
         return construir_respuesta_error(
             req,
             "Lo siento, no puedo responder a preguntas fuera del contexto de tus apuntes. Por favor, haz preguntas relacionadas con tus apuntes para obtener la mejor ayuda."
@@ -319,6 +330,7 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                     contexto = contexto["respuesta"]
             except Exception as e:
                 print(f"[RAG Chat] Error recuperando contexto: {e}")
+                log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq normal
                 return construir_respuesta_error(
                     req,
                     "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
@@ -326,6 +338,7 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
             contexto = limpiar_contexto(contexto)
 
         if not contexto.strip():
+            log_chat_interaction(req.materia, req.tema, pregunta_actual, "sin_contexto", "")  # LOG: sin contexto normal
             return construir_respuesta_error(
                 req,
                 "Lo siento, no puedo responder a esa pregunta porque no está en tus apuntes. Por favor, pregunta algo sobre el tema que tienes en tus apuntes."
@@ -369,29 +382,49 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                 respuesta = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
             except requests.exceptions.RequestException as e:
                 print(f"[ERROR Groq][RequestException] {e}")
+                log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq normal
                 return construir_respuesta_error(
                     req,
                     "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
                 )
             except Exception as e:
                 print(f"[ERROR Groq][General] {e}")
+                log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq normal
                 return construir_respuesta_error(
                     req,
                     "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
                 )
         except Exception as e:
             print(f"[ERROR Groq][Outer] {e}")
+            log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq normal
             return construir_respuesta_error(
                 req,
                 "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
             )
         if not respuesta:
+            log_chat_interaction(req.materia, req.tema, pregunta_actual, "error_groq", "")  # LOG: error_groq sin respuesta
             return construir_respuesta_error(
                 req,
                 "El sistema está teniendo problemas para procesar tu pregunta. Por favor, intenta de nuevo en unos segundos."
             )
         historial_actualizado = req.historial + [MensajeChat(role="tutor", content=respuesta)]
+        log_chat_interaction(req.materia, req.tema, pregunta_actual, "ok", respuesta)  # LOG: éxito normal
         return ChatExplicaSimpleResponse(
             respuesta=respuesta,
             historial=historial_actualizado
         )
+    
+def log_chat_interaction(materia, tema, pregunta, status, respuesta=""):
+    try:
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "materia": materia,
+            "tema": tema,
+            "pregunta": pregunta,
+            "status": status,
+            "respuesta_corta": respuesta[:60]  # por privacidad, solo un extracto
+        }
+        with open("logs_chat.txt", "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print("[LOGGING ERROR]", e)

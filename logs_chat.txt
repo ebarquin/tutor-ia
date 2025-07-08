@@ -1,0 +1,1 @@
+{"timestamp": "2025-07-08T22:35:35.304172", "materia": "historia", "tema": "Segunda guerra mundial", "pregunta": "Quien fue magneto?", "status": "ok", "respuesta_corta": "Magneto fue un personaje que apoyó activamente a Alemania du"}
