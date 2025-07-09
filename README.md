@@ -1,16 +1,5 @@
 # Tutor-IA
 
-## Índice
-
-1. [Introducción](#introducción)
-2. [Arquitectura y Tecnologías](#arquitectura-y-tecnologías-utilizadas)
-3. [Instalación y Ejecución](#-instalación-y-ejecución)
-4. [Funcionamiento del sistema RAG](#funcionamiento-del-sistema-rag)
-5. [Casos de uso recomendados](#casos-de-uso-recomendados)
-6. [Checklist de contribución o desarrollo futuro](#checklist-de-contribución-o-desarrollo-futuro)
-7. [API](#api-de-gestión-de-apuntes-y-tutoría)
-
-
 # Introducción
 
 **Tutor-IA** es una plataforma educativa potenciada por inteligencia artificial diseñada para facilitar el estudio a través del procesamiento y explicación personalizada de apuntes. Su objetivo principal es ayudar a estudiantes a comprender mejor sus materiales académicos, respondiendo a preguntas, generando resúmenes y ofreciendo explicaciones adaptadas al nivel y contexto del alumno.
