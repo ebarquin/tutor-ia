@@ -390,21 +390,22 @@ Esta plataforma está diseñada para estudiantes y profesionales que deseen **ap
 
 ---
 
-### 📤 Subir apuntes y enriquecerlos automáticamente
+### 📤 Subir apuntes
+- Los usuarios pueden subir apuntes en formato PDF, indicando la materia y el tema correspondiente.
+- Una vez subidos, el sistema analiza automáticamente el contenido, lo divide en fragmentos (chunking), y lo vectoriza usando FAISS para su posterior consulta mediante RAG.
+- Esta operación permite que las preguntas realizadas por el usuario puedan resolverse con información precisa extraída directamente de los apuntes.
 
-- Los usuarios pueden subir apuntes en formato PDF clasificados por **materia** y **tema**.
-- El sistema analiza el contenido, lo vectoriza y lo almacena de forma eficiente.
-- Luego, se puede ejecutar un proceso de **enriquecimiento automático** que detecta lagunas de contenido y añade subtemas desarrollados por la IA, mejorando así la calidad del material de estudio.
+### 🧠 Enriquecer apuntes automáticamente
 
----
+- Una vez que los apuntes han sido subidos y procesados, es posible ejecutar un proceso opcional de enriquecimiento.
+- Este proceso evalúa automáticamente la riqueza del contenido: si se considera que un tema no está suficientemente desarrollado, se inicia una generación asistida por IA.
+- El flujo del enriquecimiento sigue varias fases escalonadas:
+	1.	🧪 Evaluación inicial del contenido: se analiza si los apuntes contienen suficientes fragmentos y subtemas desarrollados.
+	2.	⚙️ Generación de subtemas con Groq (LLaMA 3): si el contenido es pobre, se intenta ampliar automáticamente usando un agente que propone y redacta subtemas relevantes.
+	3.	🧭 Prompt específico refinado: si no se alcanza el nivel de profundidad necesario, se genera un prompt más preciso centrado en los vacíos detectados.
+	4.	🧠 Intervención con GPT-3.5: como última etapa, se solicita una generación complementaria con GPT-3.5 para asegurar la cobertura completa del tema.
+- El contenido generado se integra de forma modular y no destructiva en el vectorstore, ampliando la base de conocimiento sin alterar el material original del usuario.
 
-### ❓ Formular preguntas sobre temas concretos
-
-- El usuario puede hacer preguntas directamente sobre los temas que ha subido.
-- El sistema utiliza RAG (Retrieval-Augmented Generation) para buscar información relevante en los apuntes y generar una respuesta coherente, confiable y adaptada.
-- También se pueden hacer preguntas genéricas como “hazme un resumen” o “explica este tema”.
-
----
 
 ### 🧑‍🏫 Simular conversaciones educativas con IA
 
