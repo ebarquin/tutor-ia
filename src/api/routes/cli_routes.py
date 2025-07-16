@@ -6,12 +6,6 @@ PREGUNTAS_GENERICAS = [
     "resumen de", "en ", "palabras", "hazme un resumen de ", "puedes resumir", "resume en", "resumemelo",
     "podrías resumir", "podrías hacerme un resumen de ", "resumen en"
 ]
-def es_pregunta_generica(pregunta, tema):
-    p = pregunta.lower()
-    t = tema.lower()
-    if t in p:
-        return True
-    return any(pat in p for pat in PREGUNTAS_GENERICAS)
 from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
 from pathlib import Path
 from pydantic import BaseModel
@@ -32,6 +26,13 @@ from src.services.tutor import (
     evaluar_desarrollo_servicio,
     enriquecer_apuntes_servicio
 )
+
+def es_pregunta_generica(pregunta, tema):
+    p = pregunta.lower()
+    t = tema.lower()
+    if t in p:
+        return True
+    return any(pat in p for pat in PREGUNTAS_GENERICAS)
 
 def limpiar_contexto(contexto: str) -> str:
     """
@@ -233,6 +234,31 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
 
     pregunta_actual = req.historial[-1].content if req.historial else ""
 
+    # Interceptar solicitudes tipo "Evalúa mi texto sobre ...: ..."
+    import re
+    eval_pattern = r"(evalúa (mi )?texto sobre|evalúa este texto|evalúa el siguiente texto|evalúa|puedes evaluar)(.*?):\s*(.*)"
+    match = re.match(eval_pattern, pregunta_actual, re.IGNORECASE)
+    if match:
+        tema_evaluado = match.group(3).strip()
+        desarrollo_usuario = match.group(4).strip()
+        try:
+            resultado = evaluar_desarrollo_servicio(
+                materia=req.materia,
+                tema=req.tema,
+                titulo_tema=tema_evaluado,
+                desarrollo=desarrollo_usuario
+            )
+            historial_actualizado = req.historial + [MensajeChat(role="tutor", content=resultado)]
+            return ChatExplicaSimpleResponse(
+                respuesta=resultado,
+                historial=historial_actualizado
+            )
+        except Exception as e:
+            return construir_respuesta_error(
+                req,
+                "Hubo un problema evaluando tu texto. Verifica el formato o intenta de nuevo."
+            )
+
     # Comprobar si la pregunta es relevante respecto a los apuntes
     pregunta_relevante = False
     if req.materia and req.tema and pregunta_actual:
@@ -266,7 +292,7 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
                 system_prompt = (
                     "Eres un tutor académico. Cuando respondas, separa SIEMPRE la respuesta en dos bloques diferenciados:\n"
                     "1. Primero, incluye SOLO la información que aparece en los apuntes, integrándola de manera natural en el texto y SIN poner ningún título ni etiqueta.\n"
-                    "2. Después, si necesitas completar la respuesta con tu conocimiento general o la pregunta pide una extensión que no puedes cubrir, añade al final un párrafo que empiece en negrita por '**Ampliación generada por la IA:**', y explica qué parte no aparece en los apuntes o si la extensión de la respuesta está limitada por el contexto proporcionado.\n"
+                    "2. Después, si necesitas completar la respuesta con tu conocimiento general o la pregunta pide una extensión que no puedes cubrir, añade al final un párrafo que empiece en negrita por '**Ampliación generada por IA:**', y explica qué parte no aparece en los apuntes o si la extensión de la respuesta está limitada por el contexto proporcionado.\n"
                     "Si la extensión solicitada es mayor que el contexto disponible, responde lo más completo posible y explica en la ampliación que la extensión se ha limitado por la información de los apuntes.\n"
                     "Nunca inventes ni alteres datos en la primera parte. Si falta información, añade solo conocimiento bien fundamentado en la segunda.\n"
                     "\nContexto de los apuntes:\n"
@@ -370,7 +396,7 @@ def chat_explica_simple(req: ChatExplicaSimpleRequest):
         system_prompt = (
             "Eres un tutor académico. Cuando respondas, separa SIEMPRE la respuesta en dos bloques diferenciados:\n"
             "1. Primero, incluye SOLO la información que aparece en los apuntes, integrándola de manera natural en el texto y SIN poner ningún título ni etiqueta.\n"
-            "2. Después, si necesitas completar la respuesta con tu conocimiento general o la pregunta pide una extensión que no puedes cubrir, añade al final un párrafo que empiece en negrita por '**Ampliación generada por la IA:**', y explica qué parte no aparece en los apuntes o si la extensión de la respuesta está limitada por el contexto proporcionado.\n"
+            "2. Después, si necesitas completar la respuesta con tu conocimiento general o la pregunta pide una extensión que no puedes cubrir, añade al final un párrafo que empiece en negrita por '**Ampliación generada por IA:**', y explica qué parte no aparece en los apuntes o si la extensión de la respuesta está limitada por el contexto proporcionado.\n"
             "Si la extensión solicitada es mayor que el contexto disponible, responde lo más completo posible y explica en la ampliación que la extensión se ha limitado por la información de los apuntes.\n"
             "Nunca inventes ni alteres datos en la primera parte. Si falta información, añade solo conocimiento bien fundamentado en la segunda.\n"
             "\nContexto de los apuntes:\n"
@@ -461,7 +487,8 @@ def generar_audio(request: AudioRequest):
         raise HTTPException(status_code=400, detail="El texto está vacío.")
     try:
         # Adaptar tts_func para devolver bytes directamente
-        audio_path = tts_func(texto)
+        texto_enriquecido = enriquecer_texto_para_audio(texto)
+        audio_path = tts_func(texto_enriquecido)
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
         return Response(content=audio_bytes, media_type="audio/mpeg")
