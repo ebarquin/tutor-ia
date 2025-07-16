@@ -417,7 +417,7 @@ elif selected.strip() == "✨ Enriquecer apuntes":
                             st.success("🎉 ¡Apuntes enriquecidos correctamente! 🎉")
                             # Control robusto de tipos para mensaje
                             if isinstance(mensaje, dict):
-                                chunks_creados = mensaje.get("chunks_creados", "?")
+                                chunks_creados = len(data.get("nuevos_desarrollos", []))
                                 subtemas = mensaje.get("subtemas_agregados", [])
                                 detalle = mensaje.get("detalle", [])
                             else:
