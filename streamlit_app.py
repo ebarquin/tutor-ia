@@ -735,6 +735,26 @@ elif selected.strip() == "📖 Clase magistral":
             if clase:
                 st.success("✅ Clase magistral encontrada")
                 st.markdown(clase["page_content"])
+                # --- Botón para generar audio on demand de la clase magistral ---
+                if st.button("🔊 Generar audio de la clase magistral"):
+                    with st.spinner("Generando audio..."):
+                        texto_completo = clase["page_content"]
+                        texto_limitado = " ".join(texto_completo.split()[:200])
+                        payload = {"texto": texto_limitado}
+                        try:
+                            response = requests.post(f"{API_URL}/generar_audio", json=payload, timeout=120)
+                            if response.status_code == 200:
+                                audio_bytes = response.content
+                                st.success("🎧 Audio generado correctamente. Disfrútalo aquí:")
+                                st.audio(audio_bytes, format="audio/mpeg")
+                            else:
+                                try:
+                                    detail = response.json().get("detail", f"Error {response.status_code} al generar el audio.")
+                                except Exception:
+                                    detail = f"Error {response.status_code} al generar el audio."
+                                st.error(f"❌ {detail}")
+                        except Exception as e:
+                            st.error(f"❌ Error al contactar con la API: {e}")
             else:
                 st.info("ℹ️ Aún no existe una clase magistral generada para este tema. Pulsa el botón para crearla con IA.")
                 generar = st.button("🚀 Generar clase magistral ahora", key="generar_clase_magistral_btn")

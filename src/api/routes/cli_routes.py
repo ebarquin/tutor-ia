@@ -1,3 +1,5 @@
+from fastapi import Response
+from src.apuntes.scripts.agents.agent_tools import tts_func
 PREGUNTAS_GENERICAS = [
     "explica", "resumen", "resumir", "de qué trata", "introducción",
     "puedes hacer un resumen", "puedes explicarme", "hazme un resumen", "explica este tema", "qué sabes de",
@@ -448,3 +450,20 @@ def log_chat_interaction(materia, tema, pregunta, status, respuesta=""):
             f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
     except Exception as e:
         print("[LOGGING ERROR]", e)
+class AudioRequest(BaseModel):
+    texto: str
+
+# Endpoint para generar audio on demand sin almacenar archivos a largo plazo
+@router.post("/generar_audio")
+def generar_audio(request: AudioRequest):
+    texto = request.texto.strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="El texto está vacío.")
+    try:
+        # Adaptar tts_func para devolver bytes directamente
+        audio_path = tts_func(texto)
+        with open(audio_path, "rb") as f:
+            audio_bytes = f.read()
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando audio: {str(e)}")
