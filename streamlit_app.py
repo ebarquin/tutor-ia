@@ -447,7 +447,7 @@ elif selected.strip() == "✨ Enriquecer apuntes":
             st.code(traceback.format_exc())
 
 elif selected.strip() == "📋 Evaluar desarrollo":
-    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval", "titulo_eval"]:
+    for key in ["materia_pregunta", "tema_pregunta", "materia_nino", "tema_nino", "materia_cm", "tema_cm", "materia_eval", "tema_eval"]:
         st.session_state.pop(key, None)
     st.header("Evaluar un desarrollo completo de tema")
     materia_eval, tema_eval = seleccionar_materia_y_tema(materias, cargar_temas, "materia_eval", "tema_eval")
