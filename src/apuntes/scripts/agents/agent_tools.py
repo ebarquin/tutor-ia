@@ -14,6 +14,8 @@ from src.config import ELEVENLABS_API_KEY, GROQ_API_KEY,OPENAI_API_KEY
 
 load_dotenv()
 
+enriched_titles_memory = set()
+
 # Constantes globales
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 BASE_DIR = Path(__file__).resolve().parents[4]
@@ -308,27 +310,26 @@ def generar_clase_magistral_avanzada(materia: str, tema: str, max_subtemas: int 
 
 def enriquecer_apuntes_tool(materia: str, tema: str, modelo_llm=llm_groq):
     print(f"[ENRIQUECER] >>> Inicio enriquecer_apuntes_tool para {materia}/{tema}")
-    # Se eleva el umbral de 'min_longitud' para que solo los subtemas realmente breves sean enriquecidos.
-    # Límite de subtemas por MVP.
-    subtemas_pobres = detectar_subtemas_pobres(materia, tema, min_longitud=150, max_subtemas=5)
+    subtemas_pobres = detectar_subtemas_pobres(materia, tema, min_longitud=150, max_subtemas=10)
     print(f"[ENRIQUECER] Subtemas pobres detectados: {subtemas_pobres}")
 
+    # Filtra subtemas ya enriquecidos en esta sesión
+    subtemas_pobres = [s for s in subtemas_pobres if s['titulo'] not in enriched_titles_memory]
+
     if not subtemas_pobres:
-        print("[ENRIQUECER] No hay subtemas pobres.")
-        return {"mensaje": "No se detectaron subtemas pobres.", "nuevos_desarrollos": []}
+        print("[ENRIQUECER] No hay subtemas pobres no enriquecidos.")
+        return {"mensaje": "No se detectaron subtemas pobres no enriquecidos.", "nuevos_desarrollos": []}
 
-    nuevos_desarrollos = []
-    for i, subtema in enumerate(subtemas_pobres, 1):
-        titulo = subtema["titulo"]
-        print(f"[ENRIQUECER] ({i}/{len(subtemas_pobres)}) Generando desarrollo para subtema: {titulo}")
-        contexto = obtener_todo_contexto_vectorstore(materia, tema)
-        print(f"[ENRIQUECER] Contexto obtenido para subtema: {titulo}")
-        desarrollo = generar_desarrollo_orquestado(titulo, contexto)
-        print(f"[ENRIQUECER] Desarrollo generado para: {titulo}")
-        nuevos_desarrollos.append({
-            "titulo": titulo,
-            "desarrollo": desarrollo
-        })
+    # Solo toma uno
+    subtema = subtemas_pobres[0]
+    titulo = subtema["titulo"]
+    print(f"[ENRIQUECER] Generando desarrollo para subtema: {titulo}")
+    contexto = obtener_todo_contexto_vectorstore(materia, tema)
+    desarrollo = generar_desarrollo_orquestado(titulo, contexto)
+    enriched_titles_memory.add(titulo)
+    print(f"[ENRIQUECER] Desarrollo generado para: {titulo}")
 
-    print(f"[ENRIQUECER] Total nuevos desarrollos: {len(nuevos_desarrollos)}")
-    return {"mensaje": f"Se generaron desarrollos para {len(nuevos_desarrollos)} subtemas.", "nuevos_desarrollos": nuevos_desarrollos}
+    return {
+        "mensaje": "Se generó un nuevo desarrollo enriquecido.",
+        "nuevos_desarrollos": [{"titulo": titulo, "desarrollo": desarrollo}]
+    }
