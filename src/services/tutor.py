@@ -323,20 +323,29 @@ Justificación y consejos: Faltan algunos conceptos como 'bombardeo atómico de 
     cubiertos = sum(1 for _, estado in conceptos_list if estado == "✔️")
     cobertura = cubiertos / total if total else 0
 
-    if cobertura >= 0.8:
+    if cobertura >= 0.9:
         nota = 10
     else:
         nota = round(cobertura * 10, 1)
 
     # Formato final
     lista_md = "\n".join([f"- {c}: {e}" for c, e in conceptos_list])
-    # Extrae solo los conceptos realmente NO cubiertos para la justificación
-    conceptos_faltan = [c for c, e in conceptos_list if e == "❌"]
-    consejos = ""
-    if conceptos_faltan:
-        consejos = f"Faltan conceptos como {', '.join([repr(c) for c in conceptos_faltan])}. Añádelos y repasa para mejorar tu nota."
+
+    if nota == 10:
+        conceptos_faltan = [c for c, e in conceptos_list if e == "❌"]
+        conceptos_list = [(c, e) for c, e in conceptos_list if e == "✔️"]
+        if conceptos_faltan:
+            consejos = f"¡Excelente trabajo! Aunque tu texto es sobresaliente, podrías enriquecerlo aún más mencionando conceptos como {', '.join([repr(c) for c in conceptos_faltan])}."
+        else:
+            consejos = "¡Excelente! Has cubierto todos los conceptos clave del tema."
+        # reconstruir la lista_md solo con los conceptos cubiertos
+        lista_md = "\n".join([f"- {c}: {e}" for c, e in conceptos_list])
     else:
-        consejos = "¡Excelente! Has cubierto todos los conceptos clave del tema."
+        conceptos_faltan = [c for c, e in conceptos_list if e == "❌"]
+        if conceptos_faltan:
+            consejos = f"Faltan conceptos como {', '.join([repr(c) for c in conceptos_faltan])}. Añádelos y repasa para mejorar tu nota."
+        else:
+            consejos = "¡Excelente! Has cubierto todos los conceptos clave del tema."
 
     salida = f"{lista_md}\nNota final: {nota}/10\n\nJustificación y consejos: {consejos}"
     return salida
