@@ -409,22 +409,30 @@ elif selected.strip() == "✨ Enriquecer apuntes":
                         st.warning(f"⚠️ {detail}")
                     if response.status_code == 200:
                         data = response.json()
+                        st.write(data)  # DEBUG: Mostrar estructura completa de la respuesta API
                         if data.get("ya_analizado"):
                             st.info("📌 Este tema ya fue enriquecido anteriormente. No se ha realizado un nuevo análisis.")
                         else:
                             mensaje = data.get("mensaje", {})
                             st.balloons()
                             st.success("🎉 ¡Apuntes enriquecidos correctamente! 🎉")
-                            # Control robusto de tipos para mensaje
+                            # Nueva lógica robusta usando nuevos_desarrollos
+                            nuevos = data.get("nuevos_desarrollos", [])
+                            chunks_creados = len(nuevos)
+                            st.info(f"Número de nuevos chunks añadidos: **{chunks_creados}**. ¡Sigue así, tu aprendizaje mejora cada día!")
+                            if nuevos:
+                                st.markdown("**🔹 Subtemas enriquecidos:**")
+                                for dev in nuevos:
+                                    titulo = dev.get("titulo")
+                                    if titulo:
+                                        st.markdown(f"- **{titulo}**")
+                            # Mantener detalles adicionales si existen
                             if isinstance(mensaje, dict):
-                                chunks_creados = len(data.get("nuevos_desarrollos", []))
                                 subtemas = mensaje.get("subtemas_agregados", [])
                                 detalle = mensaje.get("detalle", [])
                             else:
-                                chunks_creados = "?"
                                 subtemas = []
                                 detalle = []
-                            st.info(f"Número de nuevos chunks añadidos: **{chunks_creados}**. ¡Sigue así, tu aprendizaje mejora cada día!")
                             if subtemas:
                                 st.markdown("**Subtemas añadidos:**")
                                 for sub in subtemas:
