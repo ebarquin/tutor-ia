@@ -487,8 +487,7 @@ def generar_audio(request: AudioRequest):
         raise HTTPException(status_code=400, detail="El texto está vacío.")
     try:
         # Adaptar tts_func para devolver bytes directamente
-        texto_enriquecido = enriquecer_texto_para_audio(texto)
-        audio_path = tts_func(texto_enriquecido)
+        audio_path = tts_func(texto)
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
         return Response(content=audio_bytes, media_type="audio/mpeg")
